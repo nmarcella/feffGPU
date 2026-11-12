@@ -578,6 +578,13 @@ def potentials(iz, ihole, xion, iunf, nph, nat, iphat, rat, iatph, xnatph, folp0
                nmix=1, rgrd=f32(0.05), ispec=0, jumprm=0, verbose=False, device="cpu"):
     """rat (nat, 3) bohr; iphat (nat,) potential index; iatph (nph+1,) representative atom of each potential;
     nscmt > 0 runs FEFF's self-consistency loop (SCF card: rfms1 bohr, lfms1, ca1, nscmt)."""
+    if str(device).startswith("cuda"):
+        # Parts of this calculation take GPU memory outside PyTorch's memory cache. In a process that used the GPU
+        # before, that cache can hold nearly all the memory and the calculation then fails with an out-of-memory
+        # error; releasing the cached blocks first puts it in the state of a fresh process.
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
     iz, xion, xnatph, folp0 = list(iz)[:nph + 1], list(xion)[:nph + 1], list(xnatph)[:nph + 1], list(folp0)[:nph + 1]
     rho = np.zeros((251, nph + 2)); vcoul = np.zeros((251, nph + 2)); dmag = np.zeros((251, nph + 2)); rhoval = np.zeros((251, nph + 2))
     dgc = np.zeros((251, 30, nph + 2)); dpc = np.zeros((251, 30, nph + 2)); adgc = np.zeros((10, 30, nph + 2)); adpc = np.zeros((10, 30, nph + 2))

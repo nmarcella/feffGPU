@@ -123,6 +123,12 @@ a patch that raises FEFF's partial-wave limit. Point `FEFF_HOME` (a directory wi
   self-consistency radius: reduce the `SCF` radius or the cluster. In MD-EXAFS and RMC-EXAFS reduce the batch size
   (see their configuration pages) and set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
 
+`Intel oneMKL ERROR: Parameter 6 was incorrect on entry to ZLASWP`, or `Pivots given to lu_solve must all be greater or equal to 1`
+: A problem of some PyTorch builds, not of your input: after `torch.set_num_threads()` was called before the first
+  linear-algebra call of a process, batched linear solves on the CPU fail. `feffgpu` then solves one matrix at a time
+  and continues (the first message may still be printed). To avoid it in your own code, set the number of threads
+  with the environment variable `OMP_NUM_THREADS` before Python starts and do not call `torch.set_num_threads()`.
+
 `the periodic cell ... must exceed twice the path cutoff`
 : Paths are found with the minimum-image convention, which needs a cell at least twice as wide as the path cutoff.
   Use a larger supercell or a smaller cutoff.

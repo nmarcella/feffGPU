@@ -51,3 +51,35 @@ def test_validation_case(case):
     deg = {nleg: float(v[2].sum()) for nleg, v in out["kept"].items() if v[0].shape[0]}
     ref = _feff_degeneracies(case / "paths.dat")
     assert {n: round(d) for n, d in deg.items()} == {n: round(d) for n, d in ref.items()}, (deg, ref)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs GPU")
+def test_potentials_run_in_a_process_whose_memory_cache_is_full():
+    """A process that used the GPU before keeps freed memory in PyTorch's cache. Parts of the potentials calculation take
+    GPU memory outside that cache, so the potentials stage must release it first; otherwise it fails with an
+    out-of-memory error. Here the cache is filled with nearly all the memory, then a case with self-consistent
+    potentials must still agree with FEFF."""
+    from feffgpu.chain import run
+    from feffgpu.compare import r_factor
+    case = ROOT / "data/validation/A014"
+    os.environ.pop("FEFF_LMAX", None)
+    blocks = []
+    for size in (256, 64, 16):                                          # megabytes
+        try:
+            while torch.cuda.mem_get_info()[0] > 48 * 2 ** 20:
+                blocks.append(torch.empty(size * 2 ** 20, dtype=torch.uint8, device="cuda"))
+        except torch.OutOfMemoryError:
+            pass
+    del blocks                                                          # freed, but still reserved by PyTorch's cache
+    assert torch.cuda.memory_reserved() > 0
+    out = run(case / "feff.inp", device="cuda")
+    kf, chi_ref = _chi(case / "chi.dat")
+    idx = np.round(kf / 0.05).astype(int) - 1
+    ok = (idx >= 0) & (idx < len(out["chi"]))
+    kf, chi_ref, idx = kf[ok], chi_ref[ok], idx[ok]
+    k0 = np.concatenate([[0.0], kf])
+    R = r_factor(k0, np.concatenate([[0.0], chi_ref]), np.concatenate([[0.0], out["chi"][idx]]), kmin=3.0, kmax=float(min(23.0, kf.max() - 1.0)),
+                 rmin=1.0, rmax=5.57)
+    assert R < 2e-5, R

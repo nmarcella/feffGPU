@@ -211,6 +211,28 @@ def xclmz(lmaxp1, mmaxp1, rho):
     return clm[:, 1:lmaxp1 + 1, 1:mmaxp1 + 1]                            # [l, m] 0-based, shape (E, lmaxp1, mmaxp1)
 
 
+def solve_batch(a, b):
+    """Solve ``a x = b`` for a batch: a (E, n, n), b (E, n, m).
+
+    In some PyTorch builds the batched LU factorization on the CPU returns invalid pivots when the number of threads
+    was changed (``torch.set_num_threads``) before the first linear-algebra call of the process, and the batched solve
+    then raises. Solving the matrices one at a time is not affected, so that is the fallback here; its result is
+    checked against the equations before it is used.
+    """
+    try:
+        return torch.linalg.solve(a, b)
+    except torch.linalg.LinAlgError:
+        raise                                                       # a singular matrix is a real error
+    except RuntimeError as err:
+        x = torch.stack([torch.linalg.solve(a[i], b[i]) for i in range(a.shape[0])])
+        scale = max(float(b.abs().max()), 1e-300)
+        if not bool(torch.isfinite(x).all()) or float((a @ x - b).abs().max()) > 1e-8 * scale * a.shape[-1]:
+            raise RuntimeError("the linear solve of the full multiple-scattering matrix failed, in a batch and one matrix at a time. "
+                               "If torch.set_num_threads() was called in this process, set the number of threads with the environment "
+                               "variable OMP_NUM_THREADS before Python starts instead") from err
+        return x
+
+
 def fms(cl: Cluster, ck, lipotx, xphase, iph0, lfms=0):
     """G for the central atom's block. ck (E,) complex momentum; xphase (E, lx+1, nph+1) phase shifts; lipotx (nph+1,)
     l limits. Returns gtr (E, lx+1) for potential iph0 (lfms = 0)."""
@@ -277,7 +299,7 @@ def fms(cl: Cluster, ck, lipotx, xphase, iph0, lfms=0):
     ip = iph0
     ipart = (lipotx[ip] + 1) ** 2
     cols = g0[:, :, i0[ip]:i0[ip] + ipart]
-    x = torch.linalg.solve(g0t, cols)
+    x = solve_batch(g0t, cols)
     gg = x[:, i0[ip]:i0[ip] + ipart, :]
     gtr = torch.zeros(E, lx + 1, dtype=CDTYPE, device=dev)
     for il in range(lipotx[ip] + 1):
