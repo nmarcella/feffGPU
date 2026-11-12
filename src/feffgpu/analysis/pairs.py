@@ -126,8 +126,9 @@ def shell_table(pos, symbols, cell, shells):
     ----------
     pos, symbols, cell
         The configurations (see the module docstring).
-    shells : list of (center, neighbor, r_min, r_max)
-        One row per shell: element symbols and the range of distances (A) that defines the shell.
+    shells : list of tuple
+        One ``(center, neighbor, r_min, r_max)`` per shell: the two element symbols and the range of distances (A)
+        that defines the shell.
 
     Returns
     -------
@@ -224,10 +225,10 @@ def bond_angles(pos, symbols, cell, center, neighbors, ranges):
     ----------
     center : str
         Element of the center atoms A.
-    neighbors : (str, str)
+    neighbors : tuple of str
         Elements of B and C (they may be the same element).
-    ranges : ((r_min, r_max), (r_min, r_max))
-        The A-B and A-C distance ranges (A) that define a neighbor.
+    ranges : tuple of tuple
+        ``((r_min, r_max), (r_min, r_max))``: the A-B and A-C distance ranges (A) that define a neighbor.
 
     Returns
     -------

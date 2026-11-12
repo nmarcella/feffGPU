@@ -229,6 +229,62 @@ class PairTables:
                 self.tables[ipot] = torch.cat(rows)                                        # (nr, NK)
         self.C, self.n = 0, 0
 
+    # -- single scattering of chosen absorbers (one configuration, any cell) --------------------------------------
+    @torch.no_grad()
+    def histogram(self, pos, absorbers, ipot, box=None, batch=1024):
+        """The distance histogram of chosen absorbers of one configuration, per scatterer potential.
+
+        Parameters
+        ----------
+        pos : torch.Tensor, shape (n, 3)
+            Positions (A) on this object's device.
+        absorbers : torch.Tensor of int, shape (A,)
+            Indices of the absorbing atoms.
+        ipot : torch.Tensor of int, shape (n,)
+            Scatterer potential of every atom (1 .. nph; 0 for an atom that is never a neighbor).
+        box : None, float or tensor (3, 3)
+            The cell of this configuration (as returned by ``feffgpu.cell.as_cell``); None for a cluster. It may
+            differ from the cell given at construction, so that a trajectory with a changing cell can be processed.
+        batch : int
+            Absorbers per batch (bounds the memory).
+
+        Returns
+        -------
+        hist : torch.Tensor, shape (nph + 1, nr), float64
+            Row p: the histogram of absorber-neighbor distances for neighbors of potential p on the table's distance
+            grid (the linear-interpolation weights of ``single_scattering``), summed over the absorbers. Every pair
+            within ``rmax`` is counted; there is no importance filter.
+        n_short : int
+            Pairs closer than the start of the grid (they are placed on its first point).
+        """
+        nph = max(self.tables)
+        hist = torch.zeros(nph + 1, self.nr, device=self.device, dtype=torch.float64)
+        flat = hist.view(-1)
+        short = 0
+        rmax2 = self.rmax ** 2
+        A = int(absorbers.shape[0])
+        batch = max(1, int(batch))
+        for s in range(0, A, batch):
+            a = absorbers[s:s + batch]
+            rel = wrap(pos[None, :, :] - pos[a][:, None, :], box)                  # (B, n, 3): neighbor - absorber
+            r2 = (rel ** 2).sum(-1)
+            mask = (r2 <= rmax2) & (r2 > 1e-6)
+            _b, j = torch.nonzero(mask, as_tuple=True)
+            r = torch.sqrt(r2[mask])
+            short += int((r < self.r0).sum())
+            u = (r - self.r0) / self.dr
+            i0 = torch.floor(u).clamp(0, self.nr - 2).long()
+            f = (u - i0).clamp(0, 1).double()
+            idx = ipot[j] * self.nr + i0
+            flat.index_add_(0, idx, 1.0 - f)
+            flat.index_add_(0, idx + 1, f)
+        return hist, short
+
+    def table_stack(self, potentials=None, dtype=torch.float64):
+        """The two-leg tables of the given scatterer potentials (default all), stacked: (P, nr, NK)."""
+        potentials = sorted(self.tables) if potentials is None else list(potentials)
+        return torch.stack([self.tables[p].to(dtype) for p in potentials])
+
     # -- single scattering over all pairs ---------------------------------------------------------------------
     def pair_distances(self, pos):
         """All ordered pairs (absorber a, neighbor j) within the cutoff of ``pos`` (C, n, 3), minimum image.
@@ -309,6 +365,34 @@ class MultipleScattering:
         self.row_of[self.abs_atoms] = torch.arange(C * A, device=self.device)
         self.counts = {nleg: int(v["atoms"].shape[0]) for nleg, v in self.lists.items()}
         return self.counts
+
+    def set_cell(self, box):
+        """Use another periodic cell from now on (a cubic length, a 3 x 3 cell, or None): for configurations whose
+        cell changes, such as the frames of a constant-pressure trajectory. The cell must be at least twice as wide
+        as the path cutoff."""
+        cell = as_cell(box, self.device)
+        rmax = float(self.full.finder.rmax)
+        if cell is not None and min_width(cell) < 2 * rmax - 1e-6:
+            raise ValueError(f"the periodic cell (smallest width {min_width(cell):.2f} A) must exceed twice the path cutoff ({rmax} A) "
+                             "for minimum-image paths: use a larger supercell or a smaller cutoff")
+        self.box = cell
+        self.full.box = cell
+
+    def signals(self, coords, ipots):
+        """The signals of explicit paths: ``coords`` (B, nleg, 3) in A with the absorber first at the origin, ``ipots``
+        (B, nleg) with 0 for the absorber. Returns chi (B, NK) on this object's k grid (without the degeneracy) and
+        the effective half path lengths (B,) in A."""
+        cchi, reff = self.full.stage.cchi(coords.to(self.full.rdtype), ipots)
+        return self.full.stage.chi_fine(cchi, reff, self.full.q, self.full.S, "feff"), reff
+
+    def path_signals(self, pos_flat, L, start=0, stop=None):
+        """The signals of the paths ``start:stop`` of one list ``L`` (an entry of ``self.lists``) at the positions
+        ``pos_flat`` (C n, 3): chi (B, NK) without the degeneracy, and the effective half path lengths (B,). Use it to
+        group paths, for example by the elements on them or by their length."""
+        atoms, absr = L["atoms"][start:stop], L["absorber"][start:stop]
+        rel = wrap(pos_flat[atoms] - pos_flat[absr][:, None, :], self.box)
+        coords = torch.cat([torch.zeros(rel.shape[0], 1, 3, device=self.device, dtype=rel.dtype), rel], 1)
+        return self.signals(coords, L["ipots"][start:stop])
 
     def _chi_paths(self, pos_flat, L, idx, local, A, grad):
         out = torch.zeros(A, self.NK, device=self.device, dtype=self.full.rdtype)

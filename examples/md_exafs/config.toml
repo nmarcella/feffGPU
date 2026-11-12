@@ -1,0 +1,75 @@
+# The MD-EXAFS example: run `python make_trajectory.py --out FOLDER` first (it writes the trajectory, the measured
+# spectrum and a copy of the phase file and of this file into FOLDER), then `md-exafs run config.toml` in FOLDER.
+# Paths are relative to this file. Every key is described in docs/md/configuration.md.
+
+[system]
+name = "rock-salt example"
+trajectory = "trajectory.extxyz"          # written by make_trajectory.py
+output = "mdexafs_out"
+
+[lattice]
+dynamic = true                            # every frame carries its cell
+
+[frames]
+start = 0
+step = 1
+absorbers_per_frame = "all"               # every C atom; a number draws a subset per frame from the seed and the frame index
+seed = 0
+
+[[edge]]
+name = "C"
+element = "C"                             # the absorbing element of the phase file below
+edge = "K"
+potentials = "file"
+phase = "phase.pad"                       # copied by make_trajectory.py: potentials 0 C (absorber), 1 Zn, 2 C
+rpath = 5.5
+nleg = 4
+criteria = 2.0
+kmax = 16.0
+
+[average]
+blocks = 5                                # blocks of consecutive frames for the standard error
+# path_types = ["C-Zn", "C-C", "C-C-Zn"] # a selection of paths, recomputed from the cache by `md-exafs average`
+# max_distance = [2.5, 3.5, 4.5]
+
+[compare]
+chi = "measured.chi"                      # written by make_trajectory.py (planted S0^2 0.85, dE0 +1.5 eV)
+window = { kmin = 3.0, kmax = 13.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 5.2 }
+fit_s02 = true
+fit_e0 = true
+
+[rdf]
+r_max = 6.0
+bin_width = 0.01
+device = "cpu"
+
+[[rdf.peak]]
+center = "C"
+neighbor = "Zn"
+r_min = 1.7
+r_max = 2.7
+fit = "both"
+
+[[rdf.peak]]
+center = "C"
+neighbor = "C"
+r_min = 2.7
+r_max = 3.5
+fit = "both"
+
+[[rdf.projection]]
+center = "C"
+neighbor = "C"
+direction = [1, 1, 0]
+angle = 15.0
+symmetry = true
+r_min = 2.7
+r_max = 3.5
+
+[[rdf.angle]]
+center = "C"
+neighbors = ["Zn", "Zn"]
+ranges = [[1.7, 2.7], [1.7, 2.7]]
+
+[run]
+devices = "cuda"

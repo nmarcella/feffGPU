@@ -1,0 +1,83 @@
+# MD-EXAFS example: an NVT trajectory in extended xyz format, one absorbing element, potentials computed from a
+# reference cluster, the averaged spectrum compared with a measured one, and the radial distributions.
+#
+# Paths are relative to this file. Run with:
+#   md-exafs validate nvt.toml
+#   md-exafs run nvt.toml          # cache, averages and comparison in mdexafs_out/
+#   md-exafs rdf nvt.toml          # radial distributions in mdexafs_out/rdf/
+# Every key is described in the documentation page "Configuration" (docs/md/configuration.md).
+
+[system]
+name = "example_nvt"                 # a label for outputs and figures
+trajectory = "trajectory.extxyz"     # any format that ASE reads frame by frame
+reader = "ase"                       # "ase" or "mdanalysis" (binary formats, extra feffgpu[mda])
+output = "mdexafs_out"               # output folder
+
+[lattice]
+# A static cell for every frame (NVT). Give lengths and angles, three vectors, or a matrix:
+a = 13.1295
+b = 13.1295
+c = 13.1295
+alpha = 90.0
+beta = 90.0
+gamma = 90.0
+# a = [13.1295, 0.0, 0.0]            # (or the lattice vectors)
+# matrix = [[13.1295, 0, 0], [0, 13.1295, 0], [0, 0, 13.1295]]
+replicate = [1, 1, 1]                # repeat the cell when it is narrower than twice rpath
+
+[frames]
+start = 0                            # first frame of the file
+step = 1                             # every frame
+# stop = 1000                        # end of the range (excluded); default: the end of the file
+absorbers_per_frame = "all"          # or a number: a random subset per frame, from the seed and the frame index
+seed = 0
+
+[[edge]]
+name = "Zn"                          # S0^2 and the E0 shift are shared between runs by this name
+element = "Zn"
+edge = "K"
+potentials = "reference"             # computed once from a cluster of one frame (needs `feffgpu fetch-atoms`)
+cluster_radius = 7.0                 # radius of the reference cluster (A)
+scf_radius = 0.0                     # 0: no self-consistency (FEFF's default); for example 4.0 for a self-consistent potential
+rpath = 6.0                          # path cutoff (A)
+nleg = 4                             # largest number of legs (2, 3 or 4)
+criteria = 2.0                       # importance filter of multiple-scattering paths (percent)
+kmax = 18.0                          # the spectrum is calculated on 0 to kmax in steps of 0.05 1/A
+
+[average]
+# Default: every frame and every path. A selection of path types, with optional distance limits:
+# path_types = ["Zn-C", "Zn-Zn", "Zn-C-C"]
+# max_distance = [3.0, 4.5, 5.0]
+blocks = 10                          # blocks of consecutive frames for the standard error
+
+[compare]
+chi = "measured_Zn.chi"              # k and chi columns (Athena and xraylarch files are read as they are)
+window = { kmin = 3.0, kmax = 14.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 5.0 }
+fit_s02 = true                       # S0^2 and the E0 shift are fitted on the model
+fit_e0 = true
+
+[rdf]
+r_max = 8.0                          # largest distance (A)
+bin_width = 0.01                     # bin width (A)
+
+[[rdf.peak]]
+center = "Zn"
+neighbor = "C"
+r_min = 1.6
+r_max = 2.8
+fit = "both"                         # integration always; fits: "gaussian", "skewed", "both" or "none"
+
+[[rdf.projection]]
+center = "Zn"
+neighbor = "Zn"
+direction = [1, 1, 0]                # bonds within `angle` degrees of this direction (or its opposite)
+angle = 20.0
+symmetry = true                      # also every cubic equivalent of the direction
+
+[[rdf.angle]]
+center = "Zn"
+neighbors = ["C", "C"]
+ranges = [[1.6, 2.8], [1.6, 2.8]]
+
+[run]
+devices = "cuda"

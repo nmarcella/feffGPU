@@ -1,0 +1,66 @@
+# MD-EXAFS example: an NPT trajectory written by LAMMPS as a text dump with numeric atom types, the cell read from
+# every frame, two absorbing elements with phase files made beforehand, and a comparison per edge.
+#
+# Paths are relative to this file. The phase files come from `feffgpu phase cluster_Zn.inp phase_Zn.pkl` (a FEFF
+# input of a representative cluster around each absorbing element) or from FEFF itself (phase.pad).
+
+[system]
+name = "example_npt"
+trajectory = "dump.lammpstrj"        # LAMMPS text dump (columns id type x y z, or scaled or unwrapped coordinates)
+format = "lammps-dump-text"          # optional: guessed from the content
+output = "mdexafs_npt"
+
+[lattice]
+dynamic = true                       # read the box of every frame (NPT)
+
+[atoms]                              # numeric LAMMPS types -> elements
+1 = "Zn"
+2 = "C"
+
+[frames]
+start = 100                          # leave out the first frames (equilibration)
+step = 5
+absorbers_per_frame = 64             # a random subset of 64 absorbers per frame
+seed = 1
+
+[[edge]]
+name = "Zn"
+element = "Zn"
+edge = "K"
+potentials = "file"
+phase = "phase_Zn.pkl"               # potential 0 must be Zn; the scatterer potentials are found by atomic number
+rpath = 6.0
+nleg = 3
+criteria = 2.0
+kmax = 16.0
+
+[[edge]]
+name = "C"
+element = "C"
+edge = "K"
+potentials = "file"
+phase = "phase_C.pad"
+# ipots = { Zn = 1, C = 2 }          # only if the potentials cannot be found by atomic number
+rpath = 5.0
+nleg = 2                             # single scattering only
+kmax = 14.0
+
+[[compare]]
+edge = "Zn"
+chi = "measured_Zn.chi"
+window = { kmin = 3.0, kmax = 13.0, dk = 1.0, kweight = 2, rmin = 1.2, rmax = 5.0 }
+
+[[compare]]
+edge = "C"
+chi = "measured_C.chi"
+window = { kmin = 2.5, kmax = 11.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 4.0 }
+fit_e0 = false                       # hold the shift at e0
+e0 = 0.0
+
+[convergence]
+log = "log.csv"                      # a CSV with a header row (time, temperature, energies), a CP2K .ener file or an ASE log
+skip = 10.0                          # equilibration to leave out, in the log's time unit
+
+[run]
+devices = "cuda"
+frames_per_block = 8

@@ -1,0 +1,50 @@
+# MD-EXAFS example: make a trajectory with a MACE foundation model (or any ASE calculator), then compute its spectrum.
+#
+#   md-exafs dynamics dynamics.toml   # writes trajectory.extxyz and md.log (needs `pip install 'feffgpu[mace]'`)
+#   md-exafs run dynamics.toml
+#   md-exafs convergence dynamics.toml
+# Paths are relative to this file.
+
+[system]
+name = "example_dynamics"
+trajectory = "trajectory.extxyz"     # written by `md-exafs dynamics`, then read by `md-exafs run`
+output = "mdexafs_dynamics"
+
+[lattice]
+dynamic = true                       # the extended xyz frames carry their cell
+
+[frames]
+start = 0
+step = 1
+absorbers_per_frame = "all"
+
+[[edge]]
+element = "Cu"
+edge = "K"
+potentials = "reference"
+cluster_radius = 7.0
+rpath = 5.5
+nleg = 4
+criteria = 2.0
+kmax = 18.0
+
+[dynamics]
+structure = "start.cif"              # any file that ASE reads, with a periodic cell
+supercell = [3, 3, 3]
+calculator = "mace_mp"               # "mace_mp", "emt" (a few metals, for tests) or "module:function"
+model = "medium"                     # the MACE model
+temperature = 300.0                  # K
+timestep = 2.0                       # fs
+friction = 0.01                      # 1/fs
+equilibration = 1000                 # steps before frames are written
+steps = 10000                        # production steps
+save_every = 50                      # a frame every 50 steps
+log_every = 10
+seed = 0
+log = "md.log"
+
+[convergence]
+skip = 2.0                           # ps of the ASE log to leave out
+
+[run]
+devices = "cuda"

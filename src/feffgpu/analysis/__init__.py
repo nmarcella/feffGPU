@@ -1,7 +1,10 @@
 """Analysis of atomic configurations, shared by MD-EXAFS (frames of a trajectory) and RMC-EXAFS (states of a model).
 
-``feffgpu.analysis.pairs``: pair distances, partial pair distributions, shell tables (N, R, MSRD, third cumulant by
-integration), pairs at impossible distances, bond-angle distributions.
+- ``feffgpu.analysis.pairs``: pair distances, partial pair distributions, shell tables (N, R, MSRD, third cumulant by
+  integration), pairs at impossible distances, bond-angle distributions.
+- ``feffgpu.analysis.rdf``: radial distribution functions accumulated over many configurations, projected RDFs.
+- ``feffgpu.analysis.peaks``: peak fits of a pair distribution, next to the numbers by integration.
+- ``feffgpu.analysis.convergence``: convergence of a simulation log and of an averaged spectrum.
 """
 from .pairs import (minimum_image, pair_distances, distances_in_range, cumulants, shell_numbers, shell_table, partial_rdfs,
                     short_pairs, bond_angles, angle_histogram, registered_pair_distances)

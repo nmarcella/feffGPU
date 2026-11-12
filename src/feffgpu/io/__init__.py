@@ -1,6 +1,7 @@
-"""Reading structures and (in ``feffgpu.io.trajectory``) trajectories, without OVITO.
+"""Reading structures and trajectories, without OVITO.
 
 - ``feffgpu.io.structure``: element symbols, cells, POSCAR / xyz / ASE readers, supercells, potential indices.
+- ``feffgpu.io.trajectory``: streaming trajectory readers (ASE formats, LAMMPS dumps, XDATCAR; MDAnalysis optional).
 - ``feffgpu.io.evax``: the files of an EvAX run.
 - ``feffgpu.io.lattice``: ideal bcc and fcc blocks for examples and tests.
 """
