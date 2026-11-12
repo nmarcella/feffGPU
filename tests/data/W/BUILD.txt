@@ -1,0 +1,1 @@
+FEFF_LMAX=56; rebuilt feff85exafs (ltot 80, fortran/feff85exafs_ltot80.patch), upstream commit ec8dcb0

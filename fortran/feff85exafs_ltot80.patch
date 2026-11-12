@@ -1,0 +1,38 @@
+diff --git a/src/HEADERS/dim.h b/src/HEADERS/dim.h
+index 36a5fb0..e43acdb 100644
+--- a/src/HEADERS/dim.h
++++ b/src/HEADERS/dim.h
+@@ -24,7 +24,7 @@ c      avoid compilation warnings about alignment in COMMON blocks)
+       parameter (nphx = 11)
+ c      max number of ang mom (arrays 1:ltot+1)
+       integer ltot
+-      parameter (ltot = 24)
++      parameter (ltot = 80)
+ c      Loucks r grid used through overlap and in phase work arrays
+       integer nrptx
+       parameter (nrptx = 1251)
+diff --git a/src/XSPH/phase.f b/src/XSPH/phase.f
+index 145324e..9d6e63e 100644
+--- a/src/XSPH/phase.f
++++ b/src/XSPH/phase.f
+@@ -8,6 +8,8 @@ c     Josh - argument iPl has been added to arguments of xsect
+ c     2                  vi0, iPl, gamach,
+ 
+       implicit double precision (a-h, o-z)
++      character*32 envlmx
++      integer ienvl
+ 
+ c     INPUT
+ c     iph          unique pot index (used for messages only)
+@@ -98,6 +100,11 @@ c     prefac is set not to have warning message for Cu metal for kmax=20
+       prefac = 0.7d0
+       lmax = int(prefac * rmt * xkmax)
+       lmax = max(lmax, 5)
++c     feffgpu: the environment variable FEFF_LMAX sets the
++c     partial-wave count directly (convergence tests at high k); ltot
++c     raised from 24 to 80 in dim.h.  Unset = the formula above.
++      call get_environment_variable('FEFF_LMAX', envlmx, status=ienvl)
++      if (ienvl .eq. 0) read (envlmx, *) lmax
+       if (lmax.gt.ltot) then
+         ik = nint( ltot / rmt / bohr / prefac )
+         write (slog, 110) ik

@@ -1,0 +1,122 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite it, and cite the work it is built on: the FEFF references in every case, the
+  EvAX references when you use the reverse Monte Carlo tools (feffgpu.rmc). The list is below and in README.md.
+title: "feffgpu: FEFF 8.5L's EXAFS pipeline on NVIDIA GPUs, with MD-EXAFS and RMC-EXAFS"
+type: software
+authors:
+  - family-names: Marcella
+    given-names: N.
+repository-code: "https://github.com/nmarcella/feffGPU"
+url: "https://feffgpu.readthedocs.io"
+license: MIT
+version: 0.2.0
+date-released: "2026-11-12"
+keywords:
+  - EXAFS
+  - FEFF
+  - X-ray absorption spectroscopy
+  - reverse Monte Carlo
+  - molecular dynamics
+references:
+  - type: article
+    title: "Parameter-free calculations of X-ray spectra with FEFF9"
+    authors:
+      - family-names: Rehr
+        given-names: J. J.
+      - family-names: Kas
+        given-names: J. J.
+      - family-names: Vila
+        given-names: F. D.
+      - family-names: Prange
+        given-names: M. P.
+      - family-names: Jorissen
+        given-names: K.
+    journal: "Physical Chemistry Chemical Physics"
+    volume: 12
+    start: 5503
+    end: 5513
+    year: 2010
+    doi: 10.1039/B926434E
+  - type: article
+    title: "Real-space multiple-scattering calculation and interpretation of x-ray-absorption near-edge structure"
+    authors:
+      - family-names: Ankudinov
+        given-names: A. L.
+      - family-names: Ravel
+        given-names: B.
+      - family-names: Rehr
+        given-names: J. J.
+      - family-names: Conradson
+        given-names: S. D.
+    journal: "Physical Review B"
+    volume: 58
+    start: 7565
+    end: 7576
+    year: 1998
+    doi: 10.1103/PhysRevB.58.7565
+  - type: article
+    title: "Theoretical approaches to x-ray absorption fine structure"
+    authors:
+      - family-names: Rehr
+        given-names: J. J.
+      - family-names: Albers
+        given-names: R. C.
+    journal: "Reviews of Modern Physics"
+    volume: 72
+    start: 621
+    end: 654
+    year: 2000
+    doi: 10.1103/RevModPhys.72.621
+  - type: article
+    title: "Larch: an analysis package for XAFS and related spectroscopies"
+    authors:
+      - family-names: Newville
+        given-names: M.
+    journal: "Journal of Physics: Conference Series"
+    volume: 430
+    start: 012007
+    year: 2013
+    doi: 10.1088/1742-6596/430/1/012007
+  - type: article
+    title: "Reverse Monte Carlo modeling of thermal disorder in crystalline materials from EXAFS spectra"
+    authors:
+      - family-names: Timoshenko
+        given-names: J.
+      - family-names: Kuzmin
+        given-names: A.
+      - family-names: Purans
+        given-names: J.
+    journal: "Computer Physics Communications"
+    volume: 183
+    start: 1237
+    end: 1245
+    year: 2012
+    doi: 10.1016/j.cpc.2012.02.002
+  - type: article
+    title: "EXAFS study of hydrogen intercalation into ReO3 using the evolutionary algorithm"
+    authors:
+      - family-names: Timoshenko
+        given-names: J.
+      - family-names: Kuzmin
+        given-names: A.
+      - family-names: Purans
+        given-names: J.
+    journal: "Journal of Physics: Condensed Matter"
+    volume: 26
+    start: 055401
+    year: 2014
+    doi: 10.1088/0953-8984/26/5/055401
+  - type: article
+    title: "Wavelet data analysis of EXAFS spectra"
+    authors:
+      - family-names: Timoshenko
+        given-names: J.
+      - family-names: Kuzmin
+        given-names: A.
+    journal: "Computer Physics Communications"
+    volume: 180
+    start: 920
+    end: 925
+    year: 2009
+    doi: 10.1016/j.cpc.2008.12.020
