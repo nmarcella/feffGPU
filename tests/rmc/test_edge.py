@@ -1,8 +1,8 @@
 """The forward model of one edge (feffgpu.exafs.edge.EdgeModel) and the optional wavelet objectives: single scattering equals
 the two-leg paths of the path stage for any element mix and cell, the tables are the pair tables themselves (no thermal
 widths), ignored elements are invisible, the E0 shift on the model equals tables built at the shifted energy, S0^2 and
-the E0 shift are recovered with intervals and shared between samples within the configured bounds; the Fourier
-transform of the shared layer equals xraylarch's (CPU; skipped where xraylarch is not installed)."""
+the E0 shift are recovered with intervals and shared between samples within the configured bounds. (The comparison of
+the conventions with xraylarch itself is in tests/test_larch_conventions.py.)"""
 import math
 import numpy as np
 import pytest
@@ -13,7 +13,7 @@ from feffgpu.exafs.edge import EdgeModel
 
 
 def on_gpu(test):
-    """Every test of this file but the comparison of the transform with xraylarch (CPU) runs on the GPU."""
+    """Every test of this file runs on the GPU."""
     return pytest.mark.gpu(GPU(test))
 
 
@@ -175,24 +175,3 @@ def test_wavelet_residuals_are_zero_at_the_target_and_positive_elsewhere():
         assert float(r[0]) < 1e-8 and float(r[1]) > 1e-3, (objective, r)
         W = e2.wavelet.transform(chi[:1])
         assert W.dim() == 3 and torch.isfinite(W).all()
-
-
-def test_the_transform_matches_xraylarch():
-    pytest.importorskip("larch")
-    from larch import Group
-    from larch.xafs import xftf
-    from feffgpu.exafs import ft, hanning_window, r_grid
-    k = 0.05 * np.arange(481)
-    rng = np.random.default_rng(0)
-    chi = np.exp(-0.004 * k ** 2) * (np.sin(2 * 2.4 * k + 1.0) / np.maximum(k, 0.5) ** 2 + 0.3 * np.sin(2 * 3.9 * k) / np.maximum(k, 0.5) ** 2) + 0.002 * rng.normal(size=len(k))
-    for kmin, kmax, dk, kw in ((2.0, 15.0, 2.0, 2), (3.0, 14.0, 1.0, 2), (3.0, 12.0, 1.0, 3)):
-        g = Group(k=k, chi=chi)
-        xftf(g, kmin=kmin, kmax=kmax, dk=dk, kweight=kw, window="hanning", rmax_out=10.0)
-        kt = torch.tensor(k, dtype=torch.float64)
-        w = hanning_window(kt, torch.tensor([kmin], dtype=torch.float64), torch.tensor([kmax], dtype=torch.float64), dk=dk)[0]
-        c = ft(torch.tensor(chi, dtype=torch.float64)[None], kt, w, kweight=kw)[0].numpy()
-        r = r_grid().numpy()
-        sel = (r >= 0.5) & (r <= 6)
-        mag, re = np.interp(r, g.r, g.chir_mag), np.interp(r, g.r, g.chir_re)
-        assert np.abs(mag[sel] - np.abs(c[sel])).max() / mag[sel].max() < 2e-3
-        assert np.abs(re[sel] - c[sel].real).max() / mag[sel].max() < 2e-3

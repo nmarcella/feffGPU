@@ -28,6 +28,10 @@ The first public version: one package with three tools.
   jobs, follow them, and read results and documentation, inside one workspace directory.
 - **Documentation** for Read the Docs, with the API reference, and `llms.txt` / `llms-full.txt` for agents.
 - `AGENTS.md`, `CONTRIBUTING.md`, a code of conduct, continuous integration for the tests that need no GPU.
+- A figure of the agreement with FEFF 8.5L for every environment of the validation, by element and edge
+  (`docs/validation/agreement_by_element_and_edge.png`, drawn by `tools/plot_validation_agreement.py` from
+  `data/validation/agreement.npz`), and tests of the window, the Fourier transform and the R-factor against xraylarch
+  itself (`tests/test_larch_conventions.py`).
 
 ### Changed
 

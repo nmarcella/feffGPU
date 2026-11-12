@@ -5,10 +5,21 @@ from synthetic targets. Values from the literature are not used as a yardstick.
 
 ## Against FEFF 8.5L
 
+```{figure} agreement_by_element_and_edge.png
+:alt: The R-factor between FEFF 8.5L and feffgpu per element and edge, and the two spectra of every environment drawn over each other
+
+FEFF 8.5L (black) and feffgpu (blue, on top) for the 34 random environments of the validation, one panel per absorbing
+element and edge; above, the R-factor between the two codes. The spectra are stored in `data/validation/agreement.npz`
+and `tools/plot_validation_agreement.py` redraws the figure.
+```
+
 **Random environments.** The whole chain (potentials, phase shifts, paths, chi) was compared with FEFF 8.5L on
-environments drawn at random over elements (Z = 6 to 83), edges (K, L, M), structures (lattices and random
-packings, with disorder, vacancies, strain and surfaces) and input cards. The table and the figure are on the next
-page, [](random_environments.md). The tool that made them, `tools/validate_random.py`, runs FEFF's own modules on
+environments drawn at random over elements (absorbers from C to Au, Z = 6 to 79; neighbors up to Z = 80), edges (K, L2,
+L3, M5), structures (lattices and random
+packings, with disorder, vacancies, strain and surfaces) and input cards. The median R-factor between the two codes is 1.3e-6; 33 of 34 are below
+2e-5; the one above (2.4e-3) is a random packing with an `ION` card. The number of paths, weighted by degeneracy, is
+identical in 29 of the 34; in the other 5 the codes differ by one path at the importance threshold. The Fermi levels
+agree to 2e-6 hartree or better. The table is on the next page, [](random_environments.md). The tool that made the comparison, `tools/validate_random.py`, runs FEFF's own modules on
 every case and compares; it needs a FEFF 8.5L build ([](../installation.md)).
 
 **Regression cases.** Four of those environments are stored in `data/validation/` with FEFF's own outputs. The test
@@ -65,10 +76,8 @@ FEFFGPU_POTPH_LIB=/path/to/libfeff8lpotph.so FEFF_HOME=/path/to/feff85exafs/loca
 
 ## Record of the full run for version 0.2.0
 
-Every test, with a GPU and the FEFF 8.5L library, in a fresh environment (Python 3.12,
-PyTorch 2.14 with CUDA 12.6, one 12 GB NVIDIA GPU), on 2026-11-12: 157 passed, 1 skipped (the comparison of the
-Fourier transform with xraylarch, which needs the optional `feffgpu[larch]` extra and passed separately in an
-environment that has it), none failed, in 8 minutes.
+Every test, with a GPU, the FEFF 8.5L library and xraylarch, in a fresh environment (Python 3.12, PyTorch 2.14 with
+CUDA 12.6, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-12: 168 passed, none skipped, none failed, in 8 minutes.
 
 Tests carry the markers `gpu` (needs CUDA), `oracle` (needs the FEFF library) and `slow`. The hosted continuous
 integration has no GPU and runs the first line; the GPU and oracle tests are run by hand before each release and

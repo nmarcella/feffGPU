@@ -15,7 +15,7 @@ Carlo; EvAX = the established RMC-EXAFS program whose rules the search follows.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cu126    # or .../whl/cpu on a machine without a GPU
-pip install -e ".[test,docs,mcp]"
+pip install -e ".[test,docs,mcp,larch]"
 feffgpu doctor               # what is installed, which GPUs, what is missing
 ```
 

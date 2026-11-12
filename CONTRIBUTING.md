@@ -10,7 +10,7 @@ git clone https://github.com/nmarcella/feffGPU.git
 cd feffGPU
 python -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cu126     # the CUDA build that matches your driver
-pip install -e ".[test,docs,mcp]"
+pip install -e ".[test,docs,mcp,larch]"      # larch: the tests that compare the conventions with xraylarch
 feffgpu doctor
 ```
 

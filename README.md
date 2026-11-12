@@ -14,6 +14,24 @@ photoelectron wave number k; FEFF is the program that calculates chi(k) from ato
 
 **Documentation:** <https://feffgpu.readthedocs.io> (sources in [`docs/`](docs/)).
 
+## The same output as FEFF 8.5L
+
+`feffgpu` is validated against FEFF 8.5L itself: the same `feff.inp` goes through both codes and the two chi(k) are
+compared. The figure shows all 34 random environments of that validation, one panel per absorbing element and edge,
+with FEFF 8.5L in black and `feffgpu` in blue on top, and above them the R-factor between the two codes.
+
+![feffgpu against FEFF 8.5L for 34 random environments: the R-factor between the two codes per element and edge, and the two spectra of every environment drawn over each other](docs/validation/agreement_by_element_and_edge.png)
+
+- 24 absorbing elements from C to Au; K, L2, L3 and M5 edges; lattices and random packings with disorder, vacancies,
+  strain and surfaces; self-consistent and overlapped potentials; a range of FEFF input cards.
+- The median R-factor between the two codes is 1.3e-6, and 33 of the 34 are below 2e-5, the limit that the regression
+  tests enforce. The one above it (2.4e-3) is a random packing with an `ION` card.
+- The number of paths, weighted by degeneracy, is identical in 29 of the 34. In the other 5 the two codes differ by
+  one path that sits at the importance threshold. The Fermi levels agree to 2e-6 hartree or better.
+
+The full table is in [docs/validation/random_environments.md](docs/validation/random_environments.md), the spectra
+behind the figure are in `data/validation/agreement.npz`, and `tools/plot_validation_agreement.py` redraws it.
+
 ## Please cite FEFF and EvAX
 
 This package exists because FEFF exists, and its reverse Monte Carlo search follows the rules of EvAX. If you use
@@ -99,7 +117,7 @@ rmc-exafs shells runs/my_fit --shell Zn-C:1.8:2.6      # N, R, MSRD by integrati
 - **Conventions** are xraylarch's (and so Athena's and Artemis's): the Hanning window by `kmin`, `kmax`, `dk`; the
   R-factor on the R window; S0² and the E0 shift on the model, one value per edge, shared between samples. FEFF's
   chi(k) has no Debye-Waller factor: disorder comes from the atom positions.
-- **Validation** is against FEFF 8.5L itself (random environments over elements Z = 6 to 83, K, L and M edges,
+- **Validation** is against FEFF 8.5L itself (random environments with absorbers from C to Au, K, L and M edges,
   many structures and cards: median R-factor 1.3e-6 between the two codes, worst 2.4e-3) and against synthetic
   targets with known answers. Literature values are not used as a yardstick.
 - **Limits**: EXAFS only (no XANES, polarization or spin); paths up to four legs; NVIDIA GPUs; one GPU per run
