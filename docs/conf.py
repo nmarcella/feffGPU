@@ -40,8 +40,6 @@ python_use_unqualified_type_names = True
 
 html_theme = "furo"
 html_title = f"feffgpu {release}"
-html_static_path = ["_static"]
-html_extra_path = []
 copybutton_prompt_text = r"\$ |>>> "
 copybutton_prompt_is_regexp = True
 
