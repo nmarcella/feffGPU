@@ -1,0 +1,48 @@
+# Changelog
+
+All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
+and the versions follow [Semantic Versioning](https://semver.org/).
+
+## 0.2.0 (unreleased)
+
+The first public version: one package with three tools.
+
+### Added
+
+- **MD-EXAFS** (`feffgpu.md`, command `md-exafs`): the EXAFS spectrum of a molecular dynamics trajectory averaged
+  over frames and absorbing atoms, from one TOML file; any trajectory format that ASE reads, no OVITO; decomposition
+  by path type; an HDF5 cache; shards for several GPUs and nodes; comparison with a measured spectrum; radial
+  distribution, peak-fit and convergence tools.
+- **RMC-EXAFS** (`feffgpu.rmc`, command `rmc-exafs`): reverse Monte Carlo fitting by a population search that
+  follows EvAX's rules and by gradient refinement, from one TOML file; several samples and edges in one fit with
+  S0² and the E0 shift shared per edge; constraints; analysis tools.
+- **Shared layer**: `feffgpu.exafs` (xraylarch's conventions for the window, the Fourier transform and the
+  R-factor; reading measured spectra; the forward model of whole configurations; `SpectrumComparison`; the joint fit
+  of S0² and the E0 shift with intervals), `feffgpu.io` (structures and trajectories), `feffgpu.analysis` (pair
+  distributions, shell tables, pairs at impossible distances, bond angles), `feffgpu.parallel` (devices, shards,
+  keyed random streams: the access points for several GPUs).
+- **One command** `feffgpu` with the subcommands `run`, `phase`, `fetch-atoms`, `doctor`, `md`, `rmc`, `mcp`.
+  `feffgpu doctor` checks the installation. `--json` output on the commands that print results.
+- **MCP server** (`feffgpu-mcp`, extra `feffgpu[mcp]`): tools for agents to validate configurations, start runs as
+  jobs, follow them, and read results and documentation, inside one workspace directory.
+- **Documentation** for Read the Docs, with the API reference, and `llms.txt` / `llms-full.txt` for agents.
+- `AGENTS.md`, `CONTRIBUTING.md`, a code of conduct, continuous integration for the tests that need no GPU.
+
+### Changed
+
+- The free-atom table is downloaded from this repository's release, checked against a SHA-256 checksum, and can be
+  installed from a local file (`feffgpu fetch-atoms --from-file`).
+- Python 3.11 or newer. New dependencies: `ase`, `h5py`, `matplotlib`, `pydantic`.
+- `feffgpu.compare.r_factor` takes the sill width `dk` of the window (default 1 1/Å, as before).
+- User errors of the commands end with one message that says what to do.
+
+### Notes
+
+- A known difference from FEFF 8.5L at one partial wave is documented under "Precision and limits".
+- Several GPUs in one run are not implemented yet; MD-EXAFS can be split over GPUs and nodes with shards.
+
+## 0.1.0 (2026-10-12)
+
+- FEFF 8.5L's EXAFS pipeline on the GPU in PyTorch: the input reader, the potentials with the self-consistency
+  loop, the phase shifts, the path finder up to four legs, the path stage, FEFF's binary files, the commands
+  `feffgpu`, `feffgpu-phase` and `feffgpu-fetch-atoms`; validated against FEFF 8.5L on random environments.

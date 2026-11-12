@@ -1,0 +1,28 @@
+# Publishes to PyPI when a GitHub release is published. It uses PyPI's trusted publishing (no token is stored):
+# the owner of the PyPI project `feffgpu` must first add this repository and this workflow as a trusted publisher
+# (https://docs.pypi.org/trusted-publishers/). Until then this workflow fails at the upload step and changes nothing.
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check dist/*
+      - uses: pypa/gh-action-pypi-publish@release/v1
