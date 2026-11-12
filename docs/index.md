@@ -18,7 +18,6 @@ One installation gives all three:
 
 ```bash
 pip install feffgpu
-feffgpu fetch-atoms        # the free-atom table, 100 MB, once
 feffgpu doctor             # check the installation
 ```
 

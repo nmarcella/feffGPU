@@ -1,9 +1,11 @@
 """Build the free-atom table: FEFF's single-configuration Dirac-Fock results (ATOM/scfdat.f, through the bundled
 library) for every element Z = 1..99 as a neighbour (no hole) and as an absorber with each occupied core hole
 1..16 (K to N7), plus the initial-state orbital of each hole. Neutral atoms, f electrons frozen (FEFF's defaults).
-Output: src/feffgpu/data/atoms/Z0NN.npz, one compressed file per element, read by feffgpu.pot.atomic_data.
+Output: atoms_table_build/Z0NN.npz (or the directory in FEFFGPU_ATOMS), one file per element. To use the new table, either
+set FEFFGPU_ATOMS to that directory, or pack it into the form that ships with the package:
 
     python tools/build_atoms_table.py [zmin zmax]
+    python -m feffgpu.atoms_table pack atoms_table_build src/feffgpu/data/atoms
 """
 import os, sys, time
 import numpy as np
@@ -11,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from feffgpu.potph_lib import scfdat
 from feffgpu.xsph import getorb
 
-OUT = os.environ.get("FEFFGPU_ATOMS", os.path.join(os.path.dirname(__file__), "..", "src", "feffgpu", "data", "atoms"))
+OUT = os.environ.get("FEFFGPU_ATOMS", os.path.join(os.path.dirname(__file__), "..", "atoms_table_build"))
 os.makedirs(OUT, exist_ok=True)
 KEYS = ("vcoul", "rho", "dmag", "rhoval", "dgc", "dpc", "adgc", "adpc", "xnvmu", "xnval", "iorb", "eorb", "kappa")
 t0 = time.time()

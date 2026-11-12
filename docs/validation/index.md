@@ -59,14 +59,14 @@ These are stated here so that nobody takes them as settled.
 ```bash
 pip install -e ".[test]"
 python -m pytest -m "not gpu"            # without a GPU: conventions, analysis, configuration, the agent interface
-python -m pytest                         # with a GPU and the free-atom table: everything except the oracle tests
+python -m pytest                         # with a GPU: everything except the oracle tests
 FEFFGPU_POTPH_LIB=/path/to/libfeff8lpotph.so FEFF_HOME=/path/to/feff85exafs/local_install python -m pytest   # with the FEFF library too
 ```
 
 ## Record of the full run for version 0.2.0
 
-Every test, with a GPU, the free-atom table and the FEFF 8.5L library, in a fresh environment (Python 3.12,
-PyTorch 2.14 with CUDA 12.6, one 12 GB NVIDIA GPU), on 2026-11-12: 154 passed, 1 skipped (the comparison of the
+Every test, with a GPU and the FEFF 8.5L library, in a fresh environment (Python 3.12,
+PyTorch 2.14 with CUDA 12.6, one 12 GB NVIDIA GPU), on 2026-11-12: 157 passed, 1 skipped (the comparison of the
 Fourier transform with xraylarch, which needs the optional `feffgpu[larch]` extra and passed separately in an
 environment that has it), none failed, in 8 minutes.
 

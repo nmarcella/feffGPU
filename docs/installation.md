@@ -43,30 +43,11 @@ Optional parts are installed as extras:
 ## The free-atom table
 
 The potentials stage needs FEFF's atomic results for every element (Z = 1 to 99) as a neighbor and as an absorber
-with each core hole. They are stored in a table of 100 MB that is too large for the package itself. Download it
-once:
+with each core hole. This table ships inside the package (81 MB, one file per element, stored without loss), so
+there is nothing to download: after `pip install feffgpu` a FEFF input runs.
 
-```bash
-feffgpu fetch-atoms
-```
-
-The download is checked against a SHA-256 checksum and unpacked into the installed package. To keep it elsewhere,
-for example on a shared file system:
-
-```bash
-feffgpu fetch-atoms /data/feffgpu_atoms
-export FEFFGPU_ATOMS=/data/feffgpu_atoms
-```
-
-On a machine without network access, download
-`https://github.com/nmarcella/feffGPU/releases/download/atoms-v1/feffgpu_atoms_v1.tar.gz` elsewhere, copy it, and run
-
-```bash
-feffgpu fetch-atoms --from-file feffgpu_atoms_v1.tar.gz
-```
-
-The table is needed to compute potentials and phase files. It is not needed to run MD-EXAFS or RMC-EXAFS with a
-phase file that already exists.
+The table is needed to compute potentials and phase files. To use a table that you built yourself
+(`tools/build_atoms_table.py`, which needs the optional FEFF library below), set `FEFFGPU_ATOMS` to its directory.
 
 ## Check the installation
 
@@ -74,7 +55,7 @@ phase file that already exists.
 feffgpu doctor
 ```
 
-prints the versions, the GPUs with their free memory, the state of the free-atom table, and the optional parts. It
+prints the versions, the GPUs with their free memory, where the free-atom table is, and the optional parts. It
 ends with `OK` or with a list of problems and exits with code 1 if something required is missing. `feffgpu doctor
 --json` gives the same as JSON.
 
@@ -94,7 +75,7 @@ a patch that raises FEFF's partial-wave limit. Point `FEFF_HOME` (a directory wi
 
 | Variable | Meaning |
 |---|---|
-| `FEFFGPU_ATOMS` | directory of the free-atom table (default: inside the package) |
+| `FEFFGPU_ATOMS` | directory of another free-atom table (default: the one inside the package) |
 | `FEFFGPU_POTPH_LIB` | path to `libfeff8lpotph.so` (optional) |
 | `FEFF_HOME` | a FEFF 8.5L build directory with `bin/` and `lib/` (optional) |
 | `FEFF_LMAX` | force a partial-wave limit instead of FEFF's rule |
@@ -111,8 +92,9 @@ a patch that raises FEFF's partial-wave limit. Point `FEFF_HOME` (a directory wi
 : Check `nvidia-smi`. Check that `CUDA_VISIBLE_DEVICES` is not empty. A driver older than the CUDA build also gives
   this message: install the PyTorch build for an older CUDA version.
 
-`the free-atom table is not installed`
-: Run `feffgpu fetch-atoms`, or set `FEFFGPU_ATOMS`.
+`the free-atom table was not found`
+: The table ships with the package. If `FEFFGPU_ATOMS` is set, it must name a directory that holds the table; unset it
+  to use the packaged one. `feffgpu doctor` shows where the table is looked for.
 
 `card ... is not supported by the GPU FEFF`
 : The input uses a FEFF card outside the EXAFS calculation (for example `XANES`, `POLARIZATION`, `SPIN`). See

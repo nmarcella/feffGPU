@@ -22,7 +22,7 @@ The first public version: one package with three tools.
   distributions, shell tables, pairs at impossible distances, bond angles), `feffgpu.parallel` (devices, shards,
   keyed random streams: the access points for several GPUs), `feffgpu.config_tools` (validated TOML configurations),
   `feffgpu.load_phase` (a phase file from a `phase.pad` or a pickle).
-- **One command** `feffgpu` with the subcommands `run`, `phase`, `fetch-atoms`, `doctor`, `md`, `rmc`, `mcp`.
+- **One command** `feffgpu` with the subcommands `run`, `phase`, `doctor`, `md`, `rmc`, `mcp`.
   `feffgpu doctor` checks the installation. `--json` output on the commands that print results.
 - **MCP server** (`feffgpu-mcp`, extra `feffgpu[mcp]`): tools for agents to validate configurations, start runs as
   jobs, follow them, and read results and documentation, inside one workspace directory.
@@ -31,8 +31,9 @@ The first public version: one package with three tools.
 
 ### Changed
 
-- The free-atom table is downloaded from this repository's release, checked against a SHA-256 checksum, and can be
-  installed from a local file (`feffgpu fetch-atoms --from-file`).
+- The free-atom table ships inside the package (81 MB, packed without loss; the arrays are identical byte for byte to
+  the table of version 0.1.0). Nothing has to be downloaded after `pip install`, and the commands `feffgpu fetch-atoms`
+  and `feffgpu-fetch-atoms` are gone. `FEFFGPU_ATOMS` still points the package at another table.
 - Python 3.11 or newer. New dependencies: `ase`, `h5py`, `matplotlib`, `pydantic`.
 - `feffgpu.compare.r_factor` takes the sill width `dk` of the window (default 1 1/Å, as before).
 - User errors of the commands end with one message that says what to do.

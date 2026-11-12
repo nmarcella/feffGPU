@@ -16,7 +16,6 @@ Carlo; EvAX = the established RMC-EXAFS program whose rules the search follows.
 python -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cu126    # or .../whl/cpu on a machine without a GPU
 pip install -e ".[test,docs,mcp]"
-feffgpu fetch-atoms          # the free-atom table (100 MB); needed to compute potentials, not for most tests
 feffgpu doctor               # what is installed, which GPUs, what is missing
 ```
 
@@ -24,7 +23,7 @@ feffgpu doctor               # what is installed, which GPUs, what is missing
 
 ```bash
 python -m pytest -m "not gpu" -q        # no GPU: conventions, analysis, configuration, agent interface (minutes)
-python -m pytest -q                     # GPU + free-atom table: everything except the oracle tests
+python -m pytest -q                     # with a GPU: everything except the oracle tests
 python -m pytest tests/rmc -q           # one tool
 ruff check src tests
 sphinx-build -W -b html docs docs/_build/html
@@ -71,7 +70,7 @@ src/feffgpu/
   pad.py          FEFF's pot.pad / phase.pad readers; PhaseData, PotData; load_phase (a phase.pad or a pickle)
   cell.py         periodic cells and the minimum image (torch)
   compare.py      R-factor in numpy
-  atoms_table.py  download and check of the free-atom table
+  atoms_table.py  the free-atom table that ships in data/atoms (one packed file per element), its loader and packer
   potph_lib.py onepath.py   bindings to the optional FEFF 8.5L library (oracle tests, ions)
   cli.py          the `feffgpu` command and its subcommands
   config_tools.py SHARED by the two tools' TOML configurations: base model, the window model, error messages

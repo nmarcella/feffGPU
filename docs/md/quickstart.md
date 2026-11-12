@@ -140,7 +140,7 @@ md-exafs example nvt --out config.toml      # a commented template
 - Give the cell in `[lattice]` (or `dynamic = true` when the frames carry it) and, for numeric atom types, the map
   in `[atoms]`.
 - For the potentials, the default `potentials = "reference"` computes one phase file per edge from a cluster of
-  your trajectory; it needs the free-atom table (`feffgpu fetch-atoms`). See [](potentials.md).
+  your trajectory; it uses the free-atom table that ships with the package. See [](potentials.md).
 - Split long runs over several GPUs or nodes with shards ([](shards.md)).
 - No trajectory yet? `md-exafs dynamics` makes one with a MACE potential or any ASE calculator ([](dynamics.md)).
 

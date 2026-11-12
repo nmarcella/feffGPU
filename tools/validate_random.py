@@ -100,8 +100,9 @@ def random_packing(species, radii, rcl, rng, scale):
 
 
 def available_holes(z):
-    f = Path(os.environ.get("FEFFGPU_ATOMS", ROOT / "src/feffgpu/data/atoms")) / f"Z{z:03d}.npz"
-    return [int(h) for h in np.load(f)["holes"]] if f.exists() else [1]
+    from feffgpu.atoms_table import load_element
+    table = load_element(z)
+    return [int(h) for h in table["holes"]] if table is not None else [1]
 
 
 def pick_edge(z, rng):

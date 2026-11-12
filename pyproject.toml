@@ -44,7 +44,6 @@ mcp = ["mcp>=1.2"]
 [project.scripts]
 feffgpu = "feffgpu.cli:main"
 feffgpu-phase = "feffgpu.cli:phase_main"
-feffgpu-fetch-atoms = "feffgpu.atoms_table:main"
 md-exafs = "feffgpu.md.cli:main"
 rmc-exafs = "feffgpu.rmc.cli:main"
 feffgpu-mcp = "feffgpu.mcp.server:main"
@@ -58,7 +57,7 @@ Issues = "https://github.com/nmarcella/feffGPU/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-feffgpu = ["data/getorb.json", "py.typed", "md/templates/*.toml", "rmc/templates/*.toml"]
+feffgpu = ["data/getorb.json", "data/atoms/*.npz.xz", "py.typed", "md/templates/*.toml", "rmc/templates/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

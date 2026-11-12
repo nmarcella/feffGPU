@@ -11,7 +11,6 @@ cd feffGPU
 python -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cu126     # the CUDA build that matches your driver
 pip install -e ".[test,docs,mcp]"
-feffgpu fetch-atoms
 feffgpu doctor
 ```
 
@@ -22,7 +21,7 @@ PyTorch (`--index-url https://download.pytorch.org/whl/cpu`).
 
 ```bash
 python -m pytest -m "not gpu"       # no GPU needed; this is what the hosted continuous integration runs
-python -m pytest                    # with a GPU and the free-atom table
+python -m pytest                    # with a GPU
 ```
 
 Markers: `gpu` (needs CUDA), `oracle` (needs the optional FEFF 8.5L library, `fortran/README.md`), `slow`.

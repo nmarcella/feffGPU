@@ -4,13 +4,12 @@
 
     feffgpu feff.inp --out chi.dat        # FEFF input -> chi(k), every stage on the GPU (the same as `feffgpu run`)
     feffgpu phase feff.inp phase.pkl      # potentials and phase shifts only, for MD-EXAFS and RMC-EXAFS
-    feffgpu fetch-atoms                   # download the free-atom table (100 MB), once
     feffgpu doctor                        # versions, GPUs, the free-atom table, optional parts
     feffgpu md ...                        # MD-EXAFS  (the same as the command `md-exafs`)
     feffgpu rmc ...                       # RMC-EXAFS (the same as the command `rmc-exafs`)
     feffgpu mcp ...                       # the MCP server for agents (the same as `feffgpu-mcp`)
 
-``feffgpu-phase`` and ``feffgpu-fetch-atoms`` remain as separate commands.
+``feffgpu-phase`` remains as a separate command.
 """
 from __future__ import annotations
 import argparse
@@ -21,7 +20,7 @@ import pickle
 import sys
 import time
 
-SUBCOMMANDS = ("run", "phase", "fetch-atoms", "doctor", "md", "rmc", "mcp")
+SUBCOMMANDS = ("run", "phase", "doctor", "md", "rmc", "mcp")
 
 
 def _fail(message):
@@ -62,9 +61,6 @@ def main(argv=None):
             return run_main(rest)
         if name == "phase":
             return phase_main(rest)
-        if name == "fetch-atoms":
-            from .atoms_table import main as fetch_main
-            return fetch_main(rest)
         if name == "doctor":
             return doctor_main(rest)
         module = {"md": "feffgpu.md.cli", "rmc": "feffgpu.rmc.cli", "mcp": "feffgpu.mcp.server"}[name]
@@ -74,6 +70,11 @@ def main(argv=None):
             extra = {"mcp": " (install the extra: pip install 'feffgpu[mcp]')"}.get(name, "")
             _fail(f"`feffgpu {name}` could not be loaded: {err}{extra}")
         return target.main(rest)
+    if argv and argv[0] == "fetch-atoms":                    # a command of version 0.1: the table is part of the package now
+        from .atoms_table import table_dir, table_status
+        st = table_status()
+        print(f"The free-atom table ships with the package since version 0.2: nothing to download ({st['files']} elements in {table_dir()}).")
+        return 0 if st["complete"] else 1
     if argv and argv[0] in ("-V", "--version"):
         from . import __version__
         print(f"feffgpu {__version__}")
@@ -84,7 +85,7 @@ def main(argv=None):
 def run_main(argv=None):
     """``feffgpu [run] feff.inp``: every stage, chi(k) written like FEFF's chi.dat."""
     ap = argparse.ArgumentParser(prog="feffgpu", description="FEFF 8.5L's EXAFS pipeline on the GPU: feff.inp -> chi(k) (S0^2 = 1, no Debye-Waller "
-                                 "factors, like FEFF's chi.dat) with every stage in PyTorch. Other tasks: feffgpu phase | fetch-atoms | doctor | md | rmc | mcp.")
+                                 "factors, like FEFF's chi.dat) with every stage in PyTorch. Other tasks: feffgpu phase | doctor | md | rmc | mcp.")
     ap.add_argument("inp", help="a FEFF input file (feff.inp)")
     ap.add_argument("--out", default="chi_gpu.dat", help="output file (default chi_gpu.dat)")
     ap.add_argument("--device", default="cuda", help="torch device (default cuda; cuda:1, cpu)")
@@ -215,7 +216,7 @@ def environment_report():
     if not rep["cuda_available"]:
         problems.append("no usable NVIDIA GPU: feffgpu runs on the CPU only for small inputs and slowly")
     if not rep["atoms_table"]["complete"]:
-        problems.append("the free-atom table is missing or incomplete: run `feffgpu fetch-atoms` (needed to compute potentials and phase files)")
+        problems.append("the free-atom table is missing or incomplete (it ships with the package; check FEFFGPU_ATOMS if it is set)")
     for mod in ("numpy", "scipy", "ase", "h5py", "pydantic", "matplotlib"):
         if packages[mod] is None:
             problems.append(f"the required package {mod} is not installed")
@@ -240,7 +241,7 @@ def doctor_main(argv=None):
         else:
             print("  no usable NVIDIA GPU")
         t = rep["atoms_table"]
-        print(f"  free-atom table: {t['files']} element files in {t['directory']}" + ("" if t["complete"] else "  <- incomplete: run `feffgpu fetch-atoms`"))
+        print(f"  free-atom table: {t['files']} element files in {t['directory']}" + ("" if t["complete"] else "  <- incomplete"))
         lib = rep["feff_library"]
         print("  FEFF 8.5L library (optional): " + (lib["path"] if lib["found"] else "not found (" + lib["note"] + ")"))
         print("  packages: " + ", ".join(f"{k} {v}" for k, v in rep["packages"].items() if v and not str(v).startswith("not installed")))

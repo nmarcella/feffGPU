@@ -7,7 +7,6 @@ pot.pad (pad.PotData) for the phase-shift stage. Units: Hartree and bohr. Grid: 
 """
 from __future__ import annotations
 import math
-import os
 import numpy as np
 from .pad import PotData, HART
 from .xsph import terp, f32, FA, PI, THIRD
@@ -38,20 +37,20 @@ def dist(a, b):
 
 # ------------------------------------------------------------------ free atoms
 _ATOMS = {}
-_TABLE_DIR = os.environ.get("FEFFGPU_ATOMS", os.path.join(os.path.dirname(__file__), "data", "atoms"))
-TABLE_HELP = ("the free-atom table is not installed: run `feffgpu fetch-atoms` (downloads 100 MB into the package) or set "
-              "FEFFGPU_ATOMS to a directory holding Z001.npz .. Z099.npz; `feffgpu doctor` shows what is installed")
+TABLE_HELP = ("the free-atom table was not found. It ships with the package (feffgpu/data/atoms); if the environment variable "
+              "FEFFGPU_ATOMS is set, it must name a directory that holds Z001.npz .. Z099.npz (or the packed .npz.xz files). "
+              "`feffgpu doctor` shows where the table is looked for")
 _TABLE_KEYS = ("vcoul", "rho", "dmag", "rhoval", "dgc", "dpc", "adgc", "adpc", "xnvmu", "xnval", "iorb", "eorb", "kappa")
 
 
 def _from_table(iz, ihole, ispinr):
     """The stored free-atom results (tools/build_atoms_table.py): neutral atom, f electrons frozen."""
-    f = os.path.join(_TABLE_DIR, f"Z{int(iz):03d}.npz")
-    if not os.path.exists(f):
-        if not os.path.isdir(_TABLE_DIR) or not any(n.startswith("Z") for n in os.listdir(_TABLE_DIR)):
+    from .atoms_table import load_element, table_status
+    T = load_element(iz)
+    if T is None:
+        if table_status()["files"] == 0:
             raise FileNotFoundError(TABLE_HELP)
         return None
-    T = np.load(f)
     holes = set(int(h) for h in T["holes"])
     if ihole not in holes or (ispinr and ispinr not in holes):
         return None

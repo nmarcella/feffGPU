@@ -56,7 +56,7 @@ mdexafs_out/potentials/Zn/reference.json       frame, atom, cluster size, potent
 ```
 
 A later run, a continued run and every shard reuse the phase file while the settings that made it are unchanged. This
-mode needs the free-atom table (`feffgpu fetch-atoms`, or `FEFFGPU_ATOMS` pointing at a copy).
+mode uses the free-atom table that ships with the package.
 
 ## `per_frame`: computed again at intervals
 

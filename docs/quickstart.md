@@ -1,7 +1,6 @@
 # feffgpu in 5 minutes
 
-This page takes a FEFF input file to chi(k) on the GPU. You need the installation of [](installation.md),
-including the free-atom table.
+This page takes a FEFF input file to chi(k) on the GPU. You need the installation of [](installation.md).
 
 ## From the command line
 

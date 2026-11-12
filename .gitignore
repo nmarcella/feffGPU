@@ -4,8 +4,9 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-# the free-atom table (100 MB): feffgpu-fetch-atoms, or tools/build_atoms_table.py
-src/feffgpu/data/atoms/
+# plain files of a free-atom table that you build yourself (tools/build_atoms_table.py); the packed table is tracked
+src/feffgpu/data/atoms/*.npz
+atoms_table_build/
 # a FEFF build placed next to the package (fortran/README.md)
 fortran/bin/
 fortran/lib/

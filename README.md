@@ -50,9 +50,11 @@ Requirements: Linux, Python 3.11 or newer, an NVIDIA GPU with a CUDA build of Py
 python -m venv venv && source venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cu126     # the CUDA build that matches your driver
 pip install feffgpu                                                       # or: pip install git+https://github.com/nmarcella/feffGPU.git
-feffgpu fetch-atoms                                                       # the free-atom table, 100 MB, once
 feffgpu doctor                                                            # check the installation
 ```
+
+FEFF's free-atom table, which the potentials need, ships inside the package (81 MB), so nothing else has to be
+downloaded.
 
 Optional extras: `feffgpu[mace]` (run new dynamics with MACE potentials), `feffgpu[mda]` (MDAnalysis trajectory
 reader), `feffgpu[larch]` (xraylarch), `feffgpu[mcp]` (the server for agents), `feffgpu[docs]`, `feffgpu[test]`.

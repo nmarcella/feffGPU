@@ -29,7 +29,7 @@ def test_workspace_keeps_paths_inside(tmp_path):
 def test_jobs_run_queue_and_refuse_other_commands(tmp_path):
     jm = JobManager(Workspace(tmp_path))
     with pytest.raises(WorkspaceError):
-        jm.start(["fetch-atoms"])                             # not in the list of commands a server may start
+        jm.start(["supercell"])                               # not in the list of commands a server may start
     with pytest.raises(WorkspaceError):
         jm.start(["rmc", "run-anything"])
     a = jm.start(["doctor", "--json"], device="cpu", label="check")

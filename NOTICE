@@ -18,9 +18,9 @@ marking:
 FEFF's Fortran source is not distributed in this repository. The file
 `fortran/feff85exafs_ltot80.patch` is a patch against `feff85exafs` that only
 enlarges fixed array dimensions; it contains the changed lines and their
-context lines from FEFF 8.5L. The free-atom table (a release asset) and the
-files under `tests/data/` and `data/validation/` were produced by running FEFF
-8.5L. The notice, conditions and disclaimer of FEFF 8.5L are retained below.
+context lines from FEFF 8.5L. The free-atom table
+(`src/feffgpu/data/atoms`) and the files under `tests/data/` and
+`data/validation/` were produced by running FEFF 8.5L. The notice, conditions and disclaimer of FEFF 8.5L are retained below.
 
 --- FEFF 8.5L (src/HEADERS/license.h of feff85exafs) ---
 

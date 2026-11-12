@@ -72,7 +72,7 @@ def _atoms_table_complete():
 
 @gpu
 @pytest.mark.slow
-@pytest.mark.skipif(not _atoms_table_complete(), reason="needs the free-atom table (feffgpu fetch-atoms; FEFFGPU_ATOMS)")
+@pytest.mark.skipif(not _atoms_table_complete(), reason="needs the free-atom table")
 def test_one_small_reference_calculation(tmp_path):
     """Potentials and phase shifts of a 15-atom bcc W cluster (no self-consistency), kept in the output folder and
     reused; a frame's spectrum with them is finite and dominated by the first shell."""

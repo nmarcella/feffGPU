@@ -37,8 +37,7 @@ Most MCP clients take a JSON entry of this form:
   "mcpServers": {
     "feffgpu": {
       "command": "/path/to/venv/bin/feffgpu-mcp",
-      "args": ["--workspace", "/path/to/project"],
-      "env": { "FEFFGPU_ATOMS": "/path/to/atoms" }
+      "args": ["--workspace", "/path/to/project"]
     }
   }
 }
