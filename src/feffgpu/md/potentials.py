@@ -27,32 +27,11 @@ import time
 from pathlib import Path
 import numpy as np
 from ..io.structure import SYMBOLS, Z_OF
-from ..pad import read_phase_pad
+from ..pad import load_phase
 
-__all__ = ["load_phase", "potentials_of_phase", "needed_elements", "cut_cluster", "reference_input", "PhaseProvider", "EDGE_NAMES"]
+__all__ = ["potentials_of_phase", "needed_elements", "cut_cluster", "reference_input", "PhaseProvider", "EDGE_NAMES"]
 
 EDGE_NAMES = ("K", "L1", "L2", "L3", "M1", "M2", "M3", "M4", "M5")
-
-
-def load_phase(path):
-    """Read a phase file: ``.pad`` text (FEFF's ``phase.pad``) or a pickle from ``feffgpu phase``.
-
-    Returns
-    -------
-    feffgpu.PhaseData
-    """
-    p = Path(path)
-    if not p.is_file():
-        raise FileNotFoundError(f"no such phase file: {p}")
-    with open(p, "rb") as f:
-        head = f.read(2)
-    if head[:1] == b"\x80":                                                     # a pickle (protocol 2 or later)
-        with open(p, "rb") as f:
-            obj = pickle.load(f)
-        if not hasattr(obj, "iz") or not hasattr(obj, "ph"):
-            raise ValueError(f"{p}: the pickle does not hold a phase file (feffgpu.PhaseData)")
-        return obj
-    return read_phase_pad(str(p))
 
 
 def needed_elements(symbols, absorber):

@@ -25,7 +25,8 @@ def test_cluster_with_periodic_images_and_its_feff_input(tmp_path):
 
 
 def test_potential_indices_of_user_phase_files(tmp_path):
-    from feffgpu.md.potentials import load_phase, needed_elements, potentials_of_phase
+    from feffgpu import load_phase
+    from feffgpu.md.potentials import needed_elements, potentials_of_phase
     znc = load_phase(PHASE_ZNC)
     assert potentials_of_phase(znc, "C", ["C", "Zn"]) == {"C": 2, "Zn": 1}
     with pytest.raises(ValueError, match="not Zn"):

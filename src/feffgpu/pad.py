@@ -244,3 +244,37 @@ def read_pot_pad(filename):
     return PotData(ntitle, title, nph, nohole, ihole, inters, iafolp, jumprm, iunf, *[float(v) for v in dum],
                    imt, rmt, inrm, iz, kappa, rnrm, folp, folpx, xnatph, xion, dgc0, dpc0, dgc, dpc, adgc, adpc,
                    edens, vclap, vtot, edenvl, vvalgs, dmag, xnval, eorb, iorb, qnrm, xnmues)
+
+
+def load_phase(phase):
+    """A phase file as ``PhaseData``.
+
+    Parameters
+    ----------
+    phase : PhaseData, str or Path
+        The object itself, a ``phase.pad`` written by FEFF 8.5L, or a pickle written by ``feffgpu phase``. A pickle can
+        run code when it is loaded: load only phase files that you made yourself or that come from someone you trust.
+
+    Returns
+    -------
+    PhaseData
+    """
+    def is_phase(obj):
+        return isinstance(obj, PhaseData) or (hasattr(obj, "iz") and hasattr(obj, "ph"))
+
+    if is_phase(phase):
+        return phase
+    from pathlib import Path
+    p = Path(phase)
+    if not p.is_file():
+        raise FileNotFoundError(f"no such phase file: {p}")
+    with open(p, "rb") as f:
+        head = f.read(1)
+    if head == b"\x80" or p.suffix.lower() in (".pkl", ".pickle"):          # a pickle (protocol 2 or later)
+        import pickle
+        with open(p, "rb") as f:
+            obj = pickle.load(f)
+        if not is_phase(obj):
+            raise ValueError(f"{p}: the pickle does not hold a phase file (feffgpu.PhaseData, got {type(obj).__name__})")
+        return obj
+    return read_phase_pad(str(p))

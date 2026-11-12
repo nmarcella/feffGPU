@@ -16,7 +16,7 @@ shards), ``feffgpu.md`` (MD-EXAFS), ``feffgpu.rmc`` (RMC-EXAFS), ``feffgpu.mcp``
 """
 from .chain import run
 from .inp import read_feff_inp
-from .pad import PhaseData, PotData, read_phase_pad, read_pot_pad, BOHR, HART
+from .pad import PhaseData, PotData, read_phase_pad, read_pot_pad, load_phase, BOHR, HART
 from .pot import potentials
 from .pathfinder import GPUPathFinder
 from .stage import GPUPathStage
@@ -24,5 +24,5 @@ from .cell import as_cell, wrap, min_width
 from .compare import r_factor
 
 __version__ = "0.2.0"
-__all__ = ["run", "read_feff_inp", "PhaseData", "PotData", "read_phase_pad", "read_pot_pad", "BOHR", "HART", "potentials",
+__all__ = ["run", "read_feff_inp", "PhaseData", "PotData", "read_phase_pad", "read_pot_pad", "load_phase", "BOHR", "HART", "potentials",
            "GPUPathFinder", "GPUPathStage", "as_cell", "wrap", "min_width", "r_factor"]  # the phase-shift stage: feffgpu.xsph.xsph

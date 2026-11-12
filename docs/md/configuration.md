@@ -211,12 +211,12 @@ An inline table: `window = { kmin = 3.0, kmax = 14.0, dk = 1.0, kweight = 2, rmi
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `kmin` | number | 3.0 | Center of the lower sill of the Hanning k window (1/A). |
-| `kmax` | number | 14.0 | Center of the upper sill of the Hanning k window (1/A). |
-| `dk` | number | 1.0 | Width of each sill (1/A). |
+| `kmin` | number | 3.0 | Center of the low-k sill of the Hanning window (1/A). |
+| `kmax` | number | 14.0 | Center of the high-k sill of the Hanning window (1/A). |
+| `dk` | number | 1.0 | Width of each sill of the Hanning window (1/A). |
 | `kweight` | integer | 2 | Power of k that multiplies chi(k) before the Fourier transform. |
-| `rmin` | number | 1.0 | Lower end of the R range of the R-factor (A). |
-| `rmax` | number | 6.0 | Upper end of the R range of the R-factor (A). |
+| `rmin` | number | 1.0 | Start of the R range of the R-factor (A). |
+| `rmax` | number | 6.0 | End of the R range of the R-factor (A). |
 
 ## `[rdf]`
 

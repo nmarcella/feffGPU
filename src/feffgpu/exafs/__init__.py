@@ -9,6 +9,9 @@
   model, the R-factor).
 - ``feffgpu.exafs.amplitude``: ``fit_shared`` and ``shared_intervals`` (S0^2 and the E0 shift, one value per edge,
   shared between samples, with intervals).
+- ``feffgpu.exafs.edge``: ``EdgeModel`` (one absorption edge of a structure with several elements: pair types, pair
+  tables, multiple scattering, the comparison with its measured spectrum).
+- ``feffgpu.exafs.wavelet``: EvAX's wavelet residual and xraylarch's Cauchy wavelet, as optional objectives.
 - ``feffgpu.exafs.plots``: ``plot_comparison``.
 """
 from .transform import ETOK, KSTEP, NFFT, RSTEP, FitWindow, k_grid, hanning_window, window_tensor, ft, r_grid, r_factor, r_factor_torch
@@ -17,8 +20,10 @@ from .forward import PathSpectra, PairTables, MultipleScattering
 from .comparison import SpectrumComparison
 from .amplitude import fit_shared, shared_intervals, likelihood_weights
 from .plots import plot_comparison
+from .wavelet import Wavelet, CauchyWavelet, make_wavelet
+from .edge import EdgeModel, PairType
 
 __all__ = ["ETOK", "KSTEP", "NFFT", "RSTEP", "FitWindow", "k_grid", "hanning_window", "window_tensor", "ft", "r_grid", "r_factor", "r_factor_torch",
            "read_chi", "to_grid", "check_window_inside_data", "shifted_target", "target_on_grid", "evax_window",
            "PathSpectra", "PairTables", "MultipleScattering", "SpectrumComparison", "fit_shared", "shared_intervals", "likelihood_weights",
-           "plot_comparison"]
+           "plot_comparison", "Wavelet", "CauchyWavelet", "make_wavelet", "EdgeModel", "PairType"]

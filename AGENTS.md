@@ -49,9 +49,13 @@ shared machine. Do not start long fits or benchmarks as tests.
 7. **Never fix a sample's coordination number as a result.** Every fitted number gets an uncertainty and a sentence
    on how it was obtained.
 8. **Every public function takes `device`.** Independent work items go through `feffgpu.parallel.run_items`; their
-   random numbers come from `feffgpu.parallel.keyed_rng`. Results must not depend on the number of GPUs.
+   random numbers come from `feffgpu.parallel.keyed_rng`. Results must not depend on the number of GPUs. (The RMC
+   search still draws from one generator per sample in a fixed order; moving it to keyed streams changes every
+   number of a run and is a separate, announced step. Do not do it in passing.)
 9. **Do not modify FEFF's Fortran** (the patch in `fortran/`) without asking the maintainers.
 10. Plain English, American spelling, terms defined at first use, NumPy-style docstrings with units.
+11. **Never call `torch.set_num_threads()`** in the package or in a test. In some PyTorch builds it breaks batched
+    linear solves on the CPU for the rest of the process (`tests/test_fms_solve.py` shows it in a fresh process).
 
 ## Map of the package
 
@@ -64,12 +68,14 @@ src/feffgpu/
   genfmt.py       the path signal, literal port, the reference       (FEFF's genfmt)
   stage.py        the path signal batched on the GPU, differentiable (what everything else calls)
   chain.py        feff.inp -> chi(k): `feffgpu.run`
-  pad.py          FEFF's pot.pad / phase.pad readers; PhaseData, PotData
+  pad.py          FEFF's pot.pad / phase.pad readers; PhaseData, PotData; load_phase (a phase.pad or a pickle)
   cell.py         periodic cells and the minimum image (torch)
   compare.py      R-factor in numpy
   atoms_table.py  download and check of the free-atom table
   potph_lib.py onepath.py   bindings to the optional FEFF 8.5L library (oracle tests, ions)
   cli.py          the `feffgpu` command and its subcommands
+  config_tools.py SHARED by the two tools' TOML configurations: base model, the window model, error messages
+                  with the path of the field, reading and writing TOML
   exafs/          SHARED: transform.py (grid, window, FT, R-factor, FitWindow), data.py (measured chi(k)),
                   forward.py (PairTables, MultipleScattering, PathSpectra), comparison.py (SpectrumComparison),
                   amplitude.py (joint fit of S0² and the E0 shift), edge.py (one absorption edge of a structure),
@@ -100,7 +106,7 @@ data/validation/  four random environments with FEFF's own outputs (regression c
 | a new trajectory format | `io/trajectory.py` |
 | a new analysis of structures | `analysis/` (plain arrays in, results out), then a subcommand in `md/cli.py` or `rmc/cli.py` |
 | a new move or constraint of the RMC search | `rmc/moves.py`, `rmc/constraints.py`; if it differs from EvAX, add it to `docs/rmc/evax_differences.md` |
-| a configuration key | the pydantic model in `md/config.py` or `rmc/config.py`, with a description; regenerate the reference page (`docs/md/_make_config_reference.py`, `docs/rmc/_make_config_reference.py`) |
+| a configuration key | the pydantic model in `md/config.py` or `rmc/config.py` (shared pieces in `config_tools.py`), with a description; regenerate the reference page (`docs/md/_make_config_reference.py`, `docs/rmc/_make_config_reference.py`) |
 | a new MCP tool | a method of `Tools` in `mcp/server.py` and its name in `TOOL_NAMES`; a test in `tests/test_mcp.py` |
 | several GPUs | `parallel/__init__.py` (`run_items`); keep the equality test one GPU against several |
 

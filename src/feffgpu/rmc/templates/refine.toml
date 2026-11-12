@@ -1,0 +1,36 @@
+# The gradient refinement (`rmc-exafs refine`): copies of a cell of one element refined together by gradient descent
+# on the exact spectrum, with a hard core and nothing else (no lattice, no limit on the displacements).
+#
+# Example: an fcc copper block measured at the Cu K edge. The target is the measured chi divided by S0^2; the model is
+# evaluated at the E0 shift de0 (both held). Relative paths are relative to this file.
+#
+#   rmc-exafs refine refine.toml
+
+[run]
+output = "runs/refine"
+seed = 1
+
+[[sample]]
+label = "cu"
+structure = "Cu_fcc.vasp"
+supercell = [4, 4, 4]
+
+  [[sample.edge]]
+  name = "Cu"
+  absorber = "Cu"
+  chi = "Cu.chi"
+  phase = "phase_Cu.pkl"
+  window = { kmin = 3.0, kmax = 16.0, dk = 1.0, kweight = 2, rmin = 1.5, rmax = 5.5 }
+  rpath = 6.0
+  nleg = 4
+  criteria = 2.0
+
+[amplitude]
+s02 = 0.9                         # held: the data are divided by it
+de0 = 1.0                         # held (eV)
+
+[refine]
+copies = 4                        # copies of the cell, their spectra averaged
+steps = 500                       # steps of gradient descent
+step_size = 0.003                 # A: root-mean-square move per step
+core_distance = 2.1               # A: a harmonic hard core below this distance

@@ -1,0 +1,50 @@
+# The RMC-EXAFS example: one sample, one measured edge, no rearrangements.
+#
+# The inputs come from make_synthetic_target.py (run it first). The start is the ideal Zn-C rock-salt block; the
+# "measured" spectrum is the C K edge of a disordered copy with S0^2 0.90 and an E0 shift of +1.5 eV. Relative paths are
+# relative to this file.
+#
+#   python make_synthetic_target.py
+#   rmc-exafs validate config.toml
+#   rmc-exafs run config.toml
+
+[run]
+output = "runs/example"
+seed = 1
+devices = "cuda"
+save_every = 25
+
+[[sample]]
+label = "rocksalt"
+structure = "start.vasp"
+
+  [[sample.edge]]
+  name = "C"
+  absorber = "C"
+  chi = "target.chi"
+  phase = "../../data/validation/A000/phase.pad"   # FEFF 8.5L's phase file: potential 0 is the C absorber
+  potentials = { Zn = 1, C = 2 }
+  window = { kmin = 3.0, kmax = 12.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 4.0 }
+  rpath = 4.3                                      # at most half the cell's width (8.75 A)
+  nleg = 3
+  criteria = 2.5
+
+[amplitude]
+mode = "fit"                                       # S0^2 and the E0 shift refitted on the best state
+refit_from = 21
+refit_every = 10
+
+[search]
+states = 16
+generations = 200
+step = 0.005
+acceptance = 0.8
+froze_in = 150
+gradient_steps = 20
+start_kick = 0.01
+paths_every = 10
+
+[constraints]
+max_displacement = 0.4
+closest_distance = { "C-Zn" = 1.8, "C-C" = 2.6, "Zn-Zn" = 2.6 }
+closest_tolerance = 0.05

@@ -87,7 +87,7 @@ def _write_llms_files(app, exception):
 API_PARTS = [
     ("pipeline", "The FEFF pipeline", ["feffgpu.chain", "feffgpu.inp", "feffgpu.pot", "feffgpu.scf", "feffgpu.fms", "feffgpu.xsph", "feffgpu.kernels",
                                        "feffgpu.pathfinder", "feffgpu.stage", "feffgpu.genfmt", "feffgpu.pad", "feffgpu.cell", "feffgpu.compare",
-                                       "feffgpu.atoms_table", "feffgpu.cli"]),
+                                       "feffgpu.atoms_table", "feffgpu.cli", "feffgpu.config_tools"]),
     ("exafs", "Conventions and the forward model (feffgpu.exafs)", "feffgpu.exafs"),
     ("io", "Structures and trajectories (feffgpu.io)", "feffgpu.io"),
     ("analysis", "Analysis of configurations (feffgpu.analysis)", "feffgpu.analysis"),

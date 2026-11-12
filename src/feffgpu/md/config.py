@@ -18,33 +18,24 @@ Relative paths are relative to the TOML file. The functions used by other tools:
 ``example_configs``, ``validate_file``, ``output_directory``, ``to_toml``.
 """
 from __future__ import annotations
-import json
 import math
-import tomllib
 from importlib import resources
 from pathlib import Path
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
+from ..config_tools import (ConfigError, ConfigModel, WindowModel, absolute_path, drop_none, read_toml, validation_messages,
+                            to_toml as _to_toml)
 from ..io.structure import Z_OF
 
 __all__ = ["MDExafsConfig", "SystemConfig", "LatticeConfig", "FramesConfig", "EdgeConfig", "AverageConfig", "WindowConfig", "CompareConfig",
            "PeakConfig", "ProjectionConfig", "AngleConfig", "RDFConfig", "ConvergenceConfig", "DynamicsConfig", "RunConfig",
            "ConfigError", "load_config", "parse_config", "json_schema", "example_configs", "validate_file", "output_directory", "to_toml",
-           "format_validation_error", "resolved_dict"]
+           "resolved_dict"]
 
 EDGES = ("K", "L1", "L2", "L3", "M1", "M2", "M3", "M4", "M5")
 
 
-class ConfigError(ValueError):
-    """A configuration problem; ``problems`` holds one message per problem, each starting with the field's dotted path."""
-
-    def __init__(self, problems):
-        self.problems = list(problems)
-        super().__init__("; ".join(self.problems))
-
-
-class _Model(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+_Model = ConfigModel
 
 
 def _element(value, field="element"):
@@ -173,7 +164,7 @@ class FramesConfig(_Model):
 
     @field_validator("absorbers_per_frame")
     @classmethod
-    def _abs(cls, v):
+    def absolute_path(cls, v):
         if v != "all" and int(v) < 1:
             raise ValueError("absorbers_per_frame is \"all\" or a positive number")
         return v
@@ -286,22 +277,12 @@ class AverageConfig(_Model):
         return self
 
 
-class WindowConfig(_Model):
-    """The window of a comparison, in xraylarch's terms."""
-    kmin: float = Field(3.0, ge=0, description="Center of the lower sill of the Hanning k window (1/A).")
-    kmax: float = Field(14.0, gt=0, description="Center of the upper sill of the Hanning k window (1/A).")
-    dk: float = Field(1.0, ge=0, description="Width of each sill (1/A).")
-    kweight: int = Field(2, ge=0, le=4, description="Power of k that multiplies chi(k) before the Fourier transform.")
-    rmin: float = Field(1.0, ge=0, description="Lower end of the R range of the R-factor (A).")
-    rmax: float = Field(6.0, gt=0, description="Upper end of the R range of the R-factor (A).")
-
-    @model_validator(mode="after")
-    def _order(self):
-        if self.kmax <= self.kmin:
-            raise ValueError("the k window needs kmin < kmax")
-        if self.rmax <= self.rmin:
-            raise ValueError("the R window needs rmin < rmax")
-        return self
+class WindowConfig(WindowModel):
+    """The window of a comparison, in xraylarch's terms (``feffgpu.config_tools.WindowModel`` with default ranges)."""
+    kmin: float = Field(3.0, ge=0, description="Center of the low-k sill of the Hanning window (1/A).")
+    kmax: float = Field(14.0, gt=0, description="Center of the high-k sill of the Hanning window (1/A).")
+    rmin: float = Field(1.0, ge=0, description="Start of the R range of the R-factor (A).")
+    rmax: float = Field(6.0, gt=0, description="End of the R range of the R-factor (A).")
 
 
 class CompareConfig(_Model):
@@ -553,37 +534,6 @@ class MDExafsConfig(_Model):
 
 
 # -- loading and validation ------------------------------------------------------------------------------------------
-_TYPE_TAGS = {"int", "float", "str", "bool", "list", "dict", "none", "tuple"}
-
-
-def _is_type_tag(part):
-    """pydantic adds the member of a union type to an error's location (``int``, ``literal['all']``, ``list[float]``)."""
-    if not isinstance(part, str):
-        return False
-    return part in _TYPE_TAGS or "[" in part or part.startswith(("function-", "literal", "union"))
-
-
-def format_validation_error(err):
-    """One message per problem of a pydantic ``ValidationError``, each starting with the dotted path of the field.
-
-    The errors of the alternatives of one field (a field that accepts a number or a word, for example) are joined
-    into one message."""
-    order, messages = [], {}
-    for e in err.errors():
-        loc = ".".join(str(p) for p in e.get("loc", ()) if not _is_type_tag(p)) or "file"
-        msg = e.get("msg", "invalid").replace("Value error, ", "")
-        if e.get("type") == "extra_forbidden":
-            msg = "unknown key (not a setting of this section; check the spelling)"
-        elif e.get("type") == "missing":
-            msg = "required setting is missing"
-        if loc not in messages:
-            order.append(loc)
-            messages[loc] = []
-        if msg not in messages[loc]:
-            messages[loc].append(msg)
-    return [f"{loc}: {' or '.join(messages[loc])}" for loc in order]
-
-
 def parse_config(data, base=None):
     """Validate a configuration dictionary (as read from TOML) and make its relative paths absolute.
 
@@ -605,44 +555,26 @@ def parse_config(data, base=None):
     try:
         cfg = MDExafsConfig.model_validate(data)
     except ValidationError as err:
-        raise ConfigError(format_validation_error(err)) from None
+        raise ConfigError(validation_messages(err)) from None
     if base is not None:
         _resolve_paths(cfg, Path(base))
     return cfg
 
 
-def _abs(p, base):
-    if p is None or p == "":
-        return p
-    q = Path(p).expanduser()
-    return str(q if q.is_absolute() else (base / q).resolve())
-
-
 def _resolve_paths(cfg, base):
-    cfg.system.trajectory = _abs(cfg.system.trajectory, base)
-    cfg.system.topology = _abs(cfg.system.topology, base)
-    cfg.system.output = _abs(cfg.system.output, base)
+    cfg.system.trajectory = absolute_path(cfg.system.trajectory, base)
+    cfg.system.topology = absolute_path(cfg.system.topology, base)
+    cfg.system.output = absolute_path(cfg.system.output, base)
     for e in cfg.edge:
-        e.phase = _abs(e.phase, base)
+        e.phase = absolute_path(e.phase, base)
     for c in cfg.compare:
-        c.chi = _abs(c.chi, base)
+        c.chi = absolute_path(c.chi, base)
     if cfg.convergence is not None:
-        cfg.convergence.log = _abs(cfg.convergence.log, base)
+        cfg.convergence.log = absolute_path(cfg.convergence.log, base)
     if cfg.dynamics is not None:
-        cfg.dynamics.structure = _abs(cfg.dynamics.structure, base)
-        cfg.dynamics.log = _abs(cfg.dynamics.log, base)
+        cfg.dynamics.structure = absolute_path(cfg.dynamics.structure, base)
+        cfg.dynamics.log = absolute_path(cfg.dynamics.log, base)
     return cfg
-
-
-def _read_toml(path):
-    p = Path(path)
-    if not p.is_file():
-        raise ConfigError([f"file: no such configuration file: {p}"])
-    try:
-        with open(p, "rb") as f:
-            return tomllib.load(f)
-    except tomllib.TOMLDecodeError as err:
-        raise ConfigError([f"file: not valid TOML: {err}"]) from None
 
 
 def load_config(path):
@@ -654,7 +586,7 @@ def load_config(path):
         With one message per problem, each starting with the dotted path of the field.
     """
     p = Path(path).resolve()
-    return parse_config(_read_toml(p), base=p.parent)
+    return parse_config(read_toml(p), base=p.parent)
 
 
 def json_schema():
@@ -719,7 +651,7 @@ def output_directory(path):
     the file; default ``mdexafs_out``)."""
     p = Path(path).resolve()
     try:
-        data = _read_toml(p)
+        data = read_toml(p)
     except ConfigError:
         data = {}
     out = ((data.get("system") or {}).get("output")) or "mdexafs_out"
@@ -730,67 +662,11 @@ def output_directory(path):
 # -- writing ---------------------------------------------------------------------------------------------------------
 def resolved_dict(cfg):
     """The configuration as a plain dictionary with every default filled in (None values dropped)."""
-    return _drop_none(cfg.model_dump(mode="json"))
-
-
-def _drop_none(x):
-    if isinstance(x, dict):
-        return {k: _drop_none(v) for k, v in x.items() if v is not None}
-    if isinstance(x, list):
-        return [_drop_none(v) for v in x]
-    return x
-
-
-def _key(k):
-    k = str(k)
-    return k if k and all(ch.isalnum() or ch in "_-" for ch in k) else json.dumps(k)
-
-
-def _value(v):
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if isinstance(v, int):
-        return str(v)
-    if isinstance(v, float):
-        if math.isnan(v):
-            return "nan"
-        if math.isinf(v):
-            return "inf" if v > 0 else "-inf"
-        return repr(v)
-    if isinstance(v, str):
-        return json.dumps(v)
-    if isinstance(v, (list, tuple)):
-        return "[" + ", ".join(_value(x) for x in v) + "]"
-    if isinstance(v, dict):
-        return "{" + ", ".join(f"{_key(k)} = {_value(x)}" for k, x in v.items()) + "}"
-    raise TypeError(f"cannot write {type(v).__name__} to TOML")
-
-
-def _is_table_list(v):
-    return isinstance(v, list) and v and all(isinstance(x, dict) for x in v)
-
-
-def _emit(d, path, lines, inline_keys):
-    scalars = [(k, v) for k, v in d.items() if not (isinstance(v, dict) and k not in inline_keys) and not _is_table_list(v)]
-    for k, v in scalars:
-        lines.append(f"{_key(k)} = {_value(v)}")
-    for k, v in d.items():
-        if isinstance(v, dict) and k not in inline_keys:
-            name = f"{path}.{_key(k)}" if path else _key(k)
-            lines.append("")
-            lines.append(f"[{name}]")
-            _emit(v, name, lines, inline_keys)
-    for k, v in d.items():
-        if _is_table_list(v):
-            name = f"{path}.{_key(k)}" if path else _key(k)
-            for item in v:
-                lines.append("")
-                lines.append(f"[[{name}]]")
-                _emit(item, name, lines, inline_keys)
+    return drop_none(cfg.model_dump(mode="json"))
 
 
 def to_toml(data, header=""):
-    """Write a configuration dictionary as TOML text (tables, arrays of tables, inline tables for small maps).
+    """A configuration dictionary as TOML text (``feffgpu.config_tools.to_toml`` with this tool's inline tables).
 
     Parameters
     ----------
@@ -802,6 +678,4 @@ def to_toml(data, header=""):
     -------
     str
     """
-    lines = [f"# {h}" for h in header.splitlines()] if header else []
-    _emit(data, "", lines, inline_keys={"window", "ipots", "calculator_options"})
-    return "\n".join(lines).lstrip("\n") + "\n"
+    return _to_toml(data, header=header, inline_keys=("window", "ipots", "calculator_options"))

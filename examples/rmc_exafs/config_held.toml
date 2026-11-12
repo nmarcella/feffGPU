@@ -1,0 +1,48 @@
+# The RMC-EXAFS example with S0^2 and the E0 shift held (as they would be from a reference compound).
+#
+# The same run as config.toml, except that S0^2 and the E0 shift are held at the values the synthetic spectrum was
+# made with (0.90 and +1.5 eV). Compare the two runs: with S0^2 fitted, S0^2 and the widths of the shells trade
+# against each other (README.md).
+#
+#   rmc-exafs run config_held.toml
+
+[run]
+output = "runs/example_held"
+seed = 1
+devices = "cuda"
+save_every = 25
+
+[[sample]]
+label = "rocksalt"
+structure = "start.vasp"
+
+  [[sample.edge]]
+  name = "C"
+  absorber = "C"
+  chi = "target.chi"
+  phase = "../../data/validation/A000/phase.pad"   # FEFF 8.5L's phase file: potential 0 is the C absorber
+  potentials = { Zn = 1, C = 2 }
+  window = { kmin = 3.0, kmax = 12.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 4.0 }
+  rpath = 4.3                                      # at most half the cell's width (8.75 A)
+  nleg = 3
+  criteria = 2.5
+
+[amplitude]
+mode = "fixed"                                     # held: EvAX's rule
+s02 = 0.90
+de0 = 1.5
+
+[search]
+states = 16
+generations = 200
+step = 0.005
+acceptance = 0.8
+froze_in = 150
+gradient_steps = 20
+start_kick = 0.01
+paths_every = 10
+
+[constraints]
+max_displacement = 0.4
+closest_distance = { "C-Zn" = 1.8, "C-C" = 2.6, "Zn-Zn" = 2.6 }
+closest_tolerance = 0.05

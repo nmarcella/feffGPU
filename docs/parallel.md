@@ -58,6 +58,11 @@ An RMC-EXAFS run uses one GPU. Independent runs (different random seeds, differe
 jobs and can each have their own GPU; running several seeds is also how the uncertainty of an RMC result is
 estimated ([](rmc/uncertainty.md)).
 
+Inside one search, the states of a generation are the natural unit for several GPUs. The search draws its random
+numbers from one generator per sample in a fixed order, which makes a run reproducible on one GPU. Spreading the
+states over several GPUs needs random streams keyed by the generation and the state instead. That change will alter
+the sequence of random numbers of a run, so it will be made as a separate, announced step.
+
 ## Many FEFF inputs
 
 Separate `feffgpu run` jobs, one GPU each.

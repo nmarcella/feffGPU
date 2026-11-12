@@ -21,7 +21,7 @@ from pathlib import Path
 
 ALLOWED = {
     ("run",), ("phase",), ("doctor",),
-    ("md", "run"), ("md", "merge"), ("md", "average"), ("md", "compare"), ("md", "rdf"), ("md", "convergence"), ("md", "plot"), ("md", "validate"),
+    ("md", "run"), ("md", "merge"), ("md", "average"), ("md", "compare"), ("md", "rdf"), ("md", "convergence"), ("md", "plot"), ("md", "validate"), ("md", "dynamics"),
     ("rmc", "run"), ("rmc", "refine"), ("rmc", "validate"), ("rmc", "shells"), ("rmc", "short-pairs"), ("rmc", "rdf"), ("rmc", "angles"),
     ("rmc", "plot"), ("rmc", "signal-map"),
 }

@@ -1,0 +1,67 @@
+# Two samples in one fit: two structures, each with its own measured spectra, sharing S0^2 and the E0 shift of the
+# edges with the same name (the same edge of the same element, measured on both samples).
+#
+# Example: a ZnO powder and a ZnO film, both measured at the Zn K edge; the film was also measured at the O K edge.
+# The spectra named "Zn" share one S0^2 and one E0 shift. The weights of the two spectra of the film adapt during the
+# run (EvAX's adjust_spectra_weights). Relative paths are relative to this file.
+
+[run]
+output = "runs/two_samples"
+seed = 1
+
+[[sample]]
+label = "powder"
+structure = "ZnO_powder.vasp"
+supercell = [3, 3, 2]
+
+  [[sample.edge]]
+  name = "Zn"
+  absorber = "Zn"
+  chi = "powder_Zn.chi"
+  phase = "phase_Zn.pkl"
+  potentials = { Zn = 1, O = 2 }
+  window = { kmin = 3.0, kmax = 12.5, dk = 2.0, kweight = 2, rmin = 1.0, rmax = 3.6 }
+  rpath = 5.0
+  nleg = 3
+
+[[sample]]
+label = "film"
+structure = "ZnO_film.vasp"
+supercell = [3, 3, 2]
+
+  [[sample.edge]]
+  name = "Zn"                     # the same name: S0^2 and the E0 shift shared with the powder's Zn spectrum
+  absorber = "Zn"
+  chi = "film_Zn.chi"
+  phase = "phase_Zn.pkl"
+  potentials = { Zn = 1, O = 2 }
+  window = { kmin = 3.0, kmax = 12.5, dk = 2.0, kweight = 2, rmin = 1.0, rmax = 3.6 }
+  rpath = 5.0
+  nleg = 3
+
+  [[sample.edge]]
+  name = "O"                      # a second spectrum of the film, with its own S0^2 and E0 shift
+  absorber = "O"
+  chi = "film_O.chi"
+  phase = "phase_O.pkl"
+  potentials = { O = 1, Zn = 2 }  # the potentials of the O-edge phase file
+  window = { kmin = 2.5, kmax = 9.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 3.4 }
+  rpath = 5.0
+  nleg = 3
+
+[amplitude]
+mode = "fit"
+s02 = { Zn = 1.0, O = 1.0 }       # start values per spectrum name
+de0 = { Zn = 0.0, O = 0.0 }
+refit_from = 101
+refit_every = 10
+
+[search]
+states = 16
+generations = 600
+froze_in = 500
+gradient_steps = 50
+
+[constraints]
+max_displacement = 0.4
+closest_distance = { "Zn-O" = 1.8, "O-O" = 2.6, "Zn-Zn" = 2.9 }

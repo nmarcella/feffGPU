@@ -5,6 +5,7 @@
 - ``feffgpu.analysis.rdf``: radial distribution functions accumulated over many configurations, projected RDFs.
 - ``feffgpu.analysis.peaks``: peak fits of a pair distribution, next to the numbers by integration.
 - ``feffgpu.analysis.convergence``: convergence of a simulation log and of an averaged spectrum.
+- ``feffgpu.analysis.signal_map``: which pair distances make which features of a spectrum.
 """
 from .pairs import (minimum_image, pair_distances, distances_in_range, cumulants, shell_numbers, shell_table, partial_rdfs,
                     short_pairs, bond_angles, angle_histogram, registered_pair_distances)

@@ -1,0 +1,53 @@
+# One sample, one measured edge, no rearrangements: the simplest RMC-EXAFS run.
+#
+# Example: a rock-salt oxide NiO whose Ni K edge was measured. The model is a supercell of the start structure; every
+# atom's start position is its lattice site. The atoms move under EvAX's rules (with gradient steps added), S0^2 and the
+# E0 shift of the one spectrum are fitted on it. Relative paths are relative to this file.
+#
+#   rmc-exafs validate one_edge.toml
+#   rmc-exafs run one_edge.toml
+
+[run]
+output = "runs/one_edge"          # one subdirectory per sample, plus run.json and config.resolved.toml
+seed = 1                          # the same configuration and seed give the same run
+devices = "cuda"                  # 'cuda', 'cuda:1', 'cpu', ...
+save_every = 25                   # generations between checkpoints
+
+[[sample]]
+label = "nio"                     # the output subdirectory of this sample
+structure = "NiO.vasp"            # POSCAR, CIF, extended xyz, ...: the start structure and its periodic cell
+supercell = [3, 3, 3]             # replication of the structure (the cell must be twice as wide as rpath)
+
+  [[sample.edge]]
+  name = "Ni"                     # the label of the spectrum
+  absorber = "Ni"                 # the absorbing element
+  chi = "NiO_Ni.chi"              # the measured chi(k): columns k (1/A) and chi, as written by Athena or xraylarch
+  phase = "phase_Ni.pkl"          # `feffgpu phase feff.inp phase_Ni.pkl` (or FEFF 8.5L's phase.pad); potential 0 = Ni absorber
+  potentials = { Ni = 1, O = 2 }  # element -> scattering potential, as in the POTENTIALS block of that feff.inp
+  window = { kmin = 3.0, kmax = 13.0, dk = 2.0, kweight = 2, rmin = 1.2, rmax = 4.5 }
+  rpath = 5.0                     # pair and path cutoff (A)
+  nleg = 3                        # paths of up to 3 legs (4 is more complete and slower)
+  criteria = 2.5                  # importance filter of the multiple-scattering paths (percent)
+
+[amplitude]
+mode = "fit"                      # S0^2 and the E0 shift fitted on the best state ('fixed': held; 'from_run': from an earlier run)
+s02 = 1.0                         # start value
+de0 = 0.0                         # start value (eV); the forward model is evaluated at it
+s02_bounds = [0.5, 1.5]           # a safety range, not a prior
+de0_bounds = [-8.0, 8.0]          # eV, relative to the start value
+refit_from = 101                  # first refit during the search; then every refit_every generations
+refit_every = 10
+
+[search]                          # EvAX's keyword in brackets in the documentation of every key
+states = 16                       # [Number_of_states]; even
+generations = 600                 # [Stop_after]
+step = 0.005                      # A [Maximal_step_length]
+acceptance = 0.8                  # [Acceptance_rate]
+froze_in = 500                    # [Froze_in]: generation at which worse moves stop being accepted
+gradient_steps = 50               # FIRE steps after every random move (0: EvAX's rule)
+start_kick = 0.01                 # A: the start states differ by this random displacement
+paths_every = 10                  # generations between new searches of the multiple-scattering paths
+
+[constraints]
+max_displacement = 0.4            # A from the atom's site [Maximal_displacement]; 0: no limit
+closest_distance = { "Ni-O" = 1.8, "O-O" = 2.5, "Ni-Ni" = 2.6 }   # A: shorter pairs do not exist in this chemistry

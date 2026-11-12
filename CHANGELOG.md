@@ -20,7 +20,8 @@ The first public version: one package with three tools.
   R-factor; reading measured spectra; the forward model of whole configurations; `SpectrumComparison`; the joint fit
   of S0² and the E0 shift with intervals), `feffgpu.io` (structures and trajectories), `feffgpu.analysis` (pair
   distributions, shell tables, pairs at impossible distances, bond angles), `feffgpu.parallel` (devices, shards,
-  keyed random streams: the access points for several GPUs).
+  keyed random streams: the access points for several GPUs), `feffgpu.config_tools` (validated TOML configurations),
+  `feffgpu.load_phase` (a phase file from a `phase.pad` or a pickle).
 - **One command** `feffgpu` with the subcommands `run`, `phase`, `fetch-atoms`, `doctor`, `md`, `rmc`, `mcp`.
   `feffgpu doctor` checks the installation. `--json` output on the commands that print results.
 - **MCP server** (`feffgpu-mcp`, extra `feffgpu[mcp]`): tools for agents to validate configurations, start runs as
@@ -35,6 +36,15 @@ The first public version: one package with three tools.
 - Python 3.11 or newer. New dependencies: `ase`, `h5py`, `matplotlib`, `pydantic`.
 - `feffgpu.compare.r_factor` takes the sill width `dk` of the window (default 1 1/Å, as before).
 - User errors of the commands end with one message that says what to do.
+
+### Fixed
+
+- The potentials stage could fail with an out-of-memory error in a process that had used the GPU before and whose
+  freed memory was still held in PyTorch's cache, because parts of the calculation take GPU memory outside that cache.
+  The cache is now released before the potentials are computed.
+- In some PyTorch builds a batched linear solve on the CPU fails after `torch.set_num_threads()` was called before the
+  first linear-algebra call of the process. The potentials stage now falls back to solving one matrix at a time and
+  checks the result.
 
 ### Notes
 

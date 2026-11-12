@@ -58,7 +58,8 @@ distance grid.
 ## Phase files
 
 ```python
-from feffgpu.md.potentials import load_phase, potentials_of_phase, cut_cluster, reference_input
+from feffgpu import load_phase
+from feffgpu.md.potentials import potentials_of_phase, cut_cluster, reference_input
 
 phase = load_phase("phase.pad")                                  # or a pickle from `feffgpu phase`
 ipot_of = potentials_of_phase(phase, "Zn", ["C", "Zn"])           # {element: scatterer potential}

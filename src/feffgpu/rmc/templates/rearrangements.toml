@@ -1,0 +1,48 @@
+# Rearrangements in addition to EvAX's moves: two cation species exchange their sites, and anions hop onto vacant
+# anion sites.
+#
+# Example: a fluorite-type (Ca,Sr)F2 crystal with vacancies on the fluorine sublattice, measured at the Sr K edge.
+# The start structure holds the cations on their sites and the fluorine atoms on some of the anion sites; the
+# built-in generator "fluorite" lists every anion site (occupied or vacant). Any other structure takes a file of the
+# sites of its hop sublattice instead (three columns x y z in A, or a structure file whose atoms are the sites).
+# Relative paths are relative to this file.
+
+[run]
+output = "runs/rearrangements"
+seed = 1
+
+[[sample]]
+label = "casrf"
+structure = "CaSrF_start.vasp"    # 3 x 3 x 3 conventional cells, the vacancies already in place
+
+  [[sample.edge]]
+  name = "Sr"
+  absorber = "Sr"
+  chi = "casrf_Sr.chi"
+  phase = "phase_Sr.pkl"
+  potentials = { Sr = 1, Ca = 2, F = 3 }
+  window = { kmin = 3.0, kmax = 13.0, dk = 2.0, kweight = 2, rmin = 1.5, rmax = 4.5 }
+  rpath = 5.0
+  nleg = 3
+
+[amplitude]
+mode = "fit"
+refit_from = 101
+refit_every = 10
+
+[search]
+states = 16
+generations = 600
+froze_in = 500
+gradient_steps = 50
+
+[moves]
+exchange = ["Ca", "Sr"]           # a Ca atom and a Sr atom exchange their positions and sites
+exchange_probability = 0.5        # share of the states that propose an exchange in a generation
+exchange_count = 1                # exchanges per cell of such a state
+from_generation = 101             # the first generation with exchanges and hops
+hops = { element = "F", sites = "fluorite", probability = 0.5, count = 1, jitter = 0.05 }
+
+[constraints]
+max_displacement = 0.4
+closest_distance = { "Ca-F" = 2.1, "Sr-F" = 2.2, "F-F" = 2.4, "Ca-Ca" = 3.6, "Ca-Sr" = 3.6, "Sr-Sr" = 3.6 }

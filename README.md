@@ -85,11 +85,12 @@ md-exafs compare mdexafs_out              # against a measured spectrum: R-facto
 ```bash
 rmc-exafs validate config.toml
 rmc-exafs run config.toml                 # the search; fitted states, spectra, history, report
-rmc-exafs shells runs/my_fit --shell Zn C 1.8 2.6      # N, R, MSRD by integration, with the spread over states
+rmc-exafs shells runs/my_fit --shell Zn-C:1.8:2.6      # N, R, MSRD by integration, with the spread over states
 ```
 
-Examples that generate their own synthetic inputs are in [`examples/`](examples/). The quick starts are in the
-documentation.
+`md-exafs example` and `rmc-exafs example` list commented example configurations; `md-exafs schema` and
+`rmc-exafs schema` print every key. Examples that generate their own synthetic inputs are in
+[`examples/`](examples/). The quick starts are in the documentation.
 
 ## What to expect
 

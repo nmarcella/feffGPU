@@ -25,7 +25,7 @@ import numpy as np
 import torch
 from ..cell import as_cell, min_width
 from ..exafs import MultipleScattering, PairTables
-from ..pad import BOHR, PhaseData
+from ..pad import BOHR, load_phase
 from .paths import PathTypes
 
 __all__ = ["FrameSpectrum", "EdgeSpectra", "choose_absorbers", "phase_k_range"]
@@ -138,8 +138,7 @@ class EdgeSpectra:
 
     def __init__(self, phase, absorber, ipot_of, elements, k, rpath=6.0, nleg=4, criteria=2.0, pair_rmin=1.0, pair_dr=0.002,
                  ms_bin_width=0.5, device="cuda", absorber_batch=0, path_chunk=0, ms_group=64):
-        from .potentials import load_phase
-        self.phase = phase if (isinstance(phase, PhaseData) or hasattr(phase, "iz")) else load_phase(phase)
+        self.phase = load_phase(phase)
         self.device = torch.device(device)
         self.absorber = str(absorber)
         self.k = np.asarray(k, float)
