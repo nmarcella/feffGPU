@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "feffgpu"
+version = "0.2.0"
+description = "FEFF 8.5L's EXAFS pipeline on NVIDIA GPUs in PyTorch, with MD-EXAFS and RMC-EXAFS built on it"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{name = "N. Marcella"}]
+keywords = ["EXAFS", "FEFF", "X-ray absorption spectroscopy", "reverse Monte Carlo", "molecular dynamics", "GPU"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Operating System :: POSIX :: Linux",
+  "Environment :: GPU :: NVIDIA CUDA",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+  "torch>=2.1",
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "ase>=3.22",
+  "h5py>=3.8",
+  "matplotlib>=3.7",
+  "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+docs = ["sphinx>=7", "myst-parser>=2", "furo", "sphinx-design", "sphinx-copybutton"]
+mace = ["mace-torch"]
+mda = ["MDAnalysis>=2.6"]
+larch = ["xraylarch"]
+mcp = ["mcp>=1.2"]
+
+[project.scripts]
+feffgpu = "feffgpu.cli:main"
+feffgpu-phase = "feffgpu.cli:phase_main"
+feffgpu-fetch-atoms = "feffgpu.atoms_table:main"
+md-exafs = "feffgpu.md.cli:main"
+rmc-exafs = "feffgpu.rmc.cli:main"
+feffgpu-mcp = "feffgpu.mcp.server:main"
+
+[project.urls]
+Repository = "https://github.com/nmarcella/feffGPU"
+Documentation = "https://feffgpu.readthedocs.io"
+Issues = "https://github.com/nmarcella/feffGPU/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+feffgpu = ["data/getorb.json", "py.typed", "md/templates/*.toml", "rmc/templates/*.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "gpu: needs a CUDA GPU",
+  "oracle: needs the optional FEFF 8.5L library (fortran/README.md)",
+  "slow: takes more than about 30 seconds",
+]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "F401", "F811", "F841"]
+
+[tool.ruff.lint.per-file-ignores]
+# the validated ports of FEFF's routines keep FEFF's variable names, some of which are assigned and not used
+"src/feffgpu/fms.py" = ["F841"]
+"src/feffgpu/kernels.py" = ["F841"]
+"src/feffgpu/scf.py" = ["F841"]
+"src/feffgpu/xsph.py" = ["F841"]
