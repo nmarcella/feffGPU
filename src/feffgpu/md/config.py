@@ -204,8 +204,8 @@ class EdgeConfig(_Model):
     potentials_every: int = Field(10, ge=1, description="For potentials = \"per_frame\": new potentials every this many selected frames.")
     rpath: float = Field(6.0, gt=0, description="Path cutoff (A): half the total path length, FEFF's RPATH. Single scattering includes "
                          "every pair up to it.")
-    nleg: Literal[2, 3, 4] = Field(4, description="Largest number of legs: 2 (single scattering only), 3 or 4. The path finder of "
-                                   "this package stops at four legs.")
+    nleg: int = Field(4, ge=2, le=8, description="Largest number of legs of the scattering paths: 2 (single scattering only) up to 8 "
+                      "(FEFF's NLEG). Paths of five and more legs are stored as one path type for each number of legs.")
     criteria: float = Field(2.0, ge=0, description="FEFF's plane-wave importance filter for multiple-scattering paths (percent of the "
                             "shortest single-scattering path's importance); 0 keeps every path.")
     kmax: float = Field(20.0, gt=0, description="Largest k of the calculated spectrum (1/A); the grid is 0 to kmax in steps of 0.05.")

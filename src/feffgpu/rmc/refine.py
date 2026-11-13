@@ -6,7 +6,7 @@ module) does the same for any elements and several spectra, on the edge models o
 
 An ensemble of C copies of a periodic cell of one element (every atom an absorber) is refined so that its
 ensemble-averaged spectrum matches the target in R space. Single scattering is exact at every step for every pair
-within the cutoff (``feffgpu.exafs.PairTables``). Multiple scattering (three- and four-leg paths) is exact too: FEFF's
+within the cutoff (``feffgpu.exafs.PairTables``). Multiple scattering (paths of three and more legs) is exact too: FEFF's
 path finder enumerates the paths of every absorber of every copy from the current positions (found again every
 ``refresh_every`` steps), the path stage evaluates them, and the multiple-scattering spectrum is the mean over all
 absorbers of their last evaluation. Its gradient, too costly for every absorber at every step, comes from a rotating
@@ -64,6 +64,8 @@ class GpuRmc:
         Stiffness of the hard core (eV/A^2).
     ms : bool
         False: single scattering only.
+    nleg : int
+        Largest number of legs of the multiple-scattering paths (3 to 8).
     criteria_rule : str
         ``"feff"``: the multiple-scattering paths are chosen by FEFF's path finder on the structure as it is, again
         every ``refresh_every`` steps. ``"evax"``: they are chosen once on the lattice ``sites`` by EvAX's rule
@@ -80,10 +82,11 @@ class GpuRmc:
     """
 
     def __init__(self, phase, k, target, e0, box, window=(3.0, 23.0), r_range=(1.0, 6.0), rmax=7.0, critpw=2.0, chunk=1024,
-                 r_min=2.2, core=20.0, ms=True, kweight=2, dk=1.0, device="cuda", criteria_rule="feff", sites=None, group_tolerance=0.5):
+                 r_min=2.2, core=20.0, ms=True, kweight=2, dk=1.0, device="cuda", criteria_rule="feff", sites=None, group_tolerance=0.5, nleg=4):
         self.pairs = PairTables(phase, k, target, e0, window=window, r_range=r_range, box=box, rmax=rmax, ms=False, chunk=chunk, device=device,
                                 kweight=kweight, dk=dk)
-        self.ms = MultipleScattering(phase, k, e0, box, rmax=rmax, critpw=critpw, chunk=chunk, device=device, criteria_rule=criteria_rule) if ms else None
+        self.ms = MultipleScattering(phase, k, e0, box, rmax=rmax, critpw=critpw, chunk=chunk, device=device, criteria_rule=criteria_rule,
+                                     nlegmax=int(nleg)) if ms and int(nleg) >= 3 else None
         if self.ms is not None and criteria_rule == "evax":
             if sites is None:
                 raise ValueError("criteria_rule = 'evax' chooses the paths on the lattice: give its sites (n, 3)")

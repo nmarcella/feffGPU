@@ -25,9 +25,29 @@ calc = EvaxCalculation(start, outputs=outputs)
 cfg = load_config(folder / "rmc.toml")
 sample = build_sample(cfg.sample[0], cfg)
 model, edges = sample.model, sample.edges
+
+def same_groups(ours, theirs):
+    """How many of EvAX's groups (legs, degeneracy, half length) are among the kept groups of this package."""
+    left, common = [t for t in ours if t["kept"]], 0
+    for g in theirs:
+        hit = [t for t in left if t["legs"] == g["legs"] and abs(t["degeneracy"] - g["degeneracy"]) <= 0.02 * max(1.0, g["degeneracy"])
+               and abs(t["half_length"] - g["half_length"]) <= 0.02]
+        if hit:
+            left.remove(hit[0])
+            common += 1
+    return common
+
+
+groups = {}
 for e in edges:
     if e.ms is not None and e.criteria_rule == "evax":
         e.ms.set_lattice(torch.as_tensor(model.positions, dtype=torch.float32)[e.keep.cpu()], e.ipot[e.keep], e.abs_keep, kweight=e.kweight, tolerance=e.group_tolerance)
+        theirs_list = calc.path_groups([s.name for s in calc.spectra].index(e.name))
+        if theirs_list is not None:
+            kept = [t for t in e.ms.types if t["kept"]]
+            groups[e.name] = dict(evax=len(theirs_list), here=len(kept), same=same_groups(e.ms.types, theirs_list),
+                                  evax_by_legs={n: sum(g["legs"] == n for g in theirs_list) for n in sorted({g["legs"] for g in theirs_list})},
+                                  here_by_legs={n: sum(g["legs"] == n for g in kept) for n in sorted({g["legs"] for g in kept})})
 out = Path(cfg.run.output) / cfg.sample[0].label
 if (out / "refine.npz").exists():
     z = np.load(out / "refine.npz"); ours = z["positions"][0]
@@ -41,8 +61,10 @@ sym_e, sites_e, cell_e = calc.sites()
 theirs = calc.final()
 same_cell = len(sym_e) == model.n
 k = edges[0].k
-result = dict(folder=str(folder), method=method, seconds=seconds, edges=[], shells=[])
+result = dict(folder=str(folder), method=method, seconds=seconds, edges=[], shells=[], groups=groups)
 print(f"== {folder.name}: {method}; {seconds / 60:.1f} min")
+for name, g in groups.items():
+    print(f"   {name}: groups of paths kept: EvAX {g['evax']} (by legs {g['evax_by_legs']}), here {g['here']} (by legs {g['here_by_legs']}), the same {g['same']}")
 for i, e in enumerate(edges):
     j = [s.name for s in calc.spectra].index(e.name)
     with torch.no_grad():

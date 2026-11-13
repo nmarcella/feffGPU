@@ -56,7 +56,7 @@ potentials = "reference"             # computed once from a cluster of one frame
 cluster_radius = 7.0                 # radius of the reference cluster (A)
 scf_radius = 0.0                     # 0: no self-consistency (FEFF's default); for example 4.0 for a self-consistent potential
 rpath = 6.0                          # path cutoff (A)
-nleg = 4                             # largest number of legs (2, 3 or 4)
+nleg = 4                             # largest number of legs (2 to 8)
 criteria = 2.0                       # importance filter of multiple-scattering paths (percent)
 kmax = 18.0                          # the spectrum is calculated on 0 to kmax in steps of 0.05 1/A
 
@@ -165,7 +165,7 @@ One block per absorbing element. Several blocks give several edges in one run.
 | `cards` | list of text | [] | Extra FEFF cards for the reference cluster's input, written as given (for example "EXCHANGE 0 0.0 0.0"); only cards that feffgpu reads are accepted. |
 | `potentials_every` | integer | 10 | For potentials = "per_frame": new potentials every this many selected frames. |
 | `rpath` | number | 6.0 | Path cutoff (A): half the total path length, FEFF's RPATH. Single scattering includes every pair up to it. |
-| `nleg` | 2 / 3 / 4 | 4 | Largest number of legs: 2 (single scattering only), 3 or 4. The path finder of this package stops at four legs. |
+| `nleg` | integer | 4 | Largest number of legs of the scattering paths: 2 (single scattering only) up to 8 (FEFF's NLEG). Paths of five and more legs are stored as one path type for each number of legs. |
 | `criteria` | number | 2.0 | FEFF's plane-wave importance filter for multiple-scattering paths (percent of the shortest single-scattering path's importance); 0 keeps every path. |
 | `kmax` | number | 20.0 | Largest k of the calculated spectrum (1/A); the grid is 0 to kmax in steps of 0.05. |
 | `pair_rmin` | number | 1.0 | Start of the single-scattering distance table (A). Pairs closer than this are counted and reported; lower it for systems with shorter bonds. |

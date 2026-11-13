@@ -9,7 +9,7 @@ import torch
 from .inp import read_feff_inp
 from .pot import potentials
 from .xsph import xsph
-from .pathfinder import GPUPathFinder
+from .pathfinder import GPUPathFinder, NLEG_MAX
 from .stage import GPUPathStage
 
 
@@ -32,7 +32,7 @@ def run(feff_inp, device="cuda", verbose=False, lmax_override=None, kgrid=None, 
                              rgrd=P["rgrd"], lmax_override=lmax_override, ixc0=P["ixc0"], potlbl=P["potlbl"], device=device)
         t["phases"] = time.time() - t0
     t0 = time.time()
-    finder = GPUPathFinder(phase, device=device, rmax=P["rmax"], nlegmax=min(P["nlegxx"], 4), critpw=P["critpw"])
+    finder = GPUPathFinder(phase, device=device, rmax=P["rmax"], nlegmax=max(2, min(P["nlegxx"], NLEG_MAX)), critpw=P["critpw"])
     kept, ref = finder.enumerate(P["rat_ang"], None, 0, np.array(P["iphat"]))
     t["paths"] = time.time() - t0
     t0 = time.time()

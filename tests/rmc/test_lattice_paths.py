@@ -288,3 +288,43 @@ closest_tolerance = 0.05
     (tmp_path / "moves.toml").write_text(text + '\n[moves]\nexchange = ["Zn", "C"]\n')
     problems = C.validate_file(tmp_path / "moves.toml")
     assert any("criteria_rule" in p and "exchanges or hops" in p for p in problems)
+
+
+def test_paths_of_more_than_four_legs_in_both_rules():
+    """A rock salt with a cutoff of 6.0 A has five-leg paths (four bonds and one leg between like atoms). With nleg = 6
+    both rules carry them: with no
+    threshold EvAX's rule keeps every direction of every path, so its lists give the spectrum of FEFF's finder without
+    a filter; with a threshold the groups of five legs are listed like the others."""
+    from feffgpu.exafs.edge import EdgeModel
+    sym, pos, cell = rock_salt(3)                                     # 216 atoms, 13.1 A wide
+    window = FitWindow(kmin=3.0, kmax=12.0, dk=1.0, kweight=2, rmin=1.0, rmax=5.0)
+    P = torch.as_tensor(pos + np.random.default_rng(4).normal(0, 0.04, pos.shape), device=DEVICE, dtype=torch.float32)
+    some = None
+
+    def model(rule, criteria, nleg):
+        return EdgeModel("C", K, np.zeros(len(K)), window, str(PHASE_ZNC), sym, cell, "C", potentials={"Zn": 1, "C": 2}, rpath=6.0, nleg=nleg,
+                         criteria=criteria, device=DEVICE, criteria_rule=rule)
+
+    everything = model("evax", 0.0, 6)
+    some = everything.abs_keep[:6]
+    counts = everything.ms.set_lattice(torch.as_tensor(pos, dtype=torch.float32), everything.ipot, some, kweight=2)
+    assert set(counts) == {3, 4, 5} and counts[5] > 0                 # five legs fit, six do not (6 x 2.19 A > 2 x 6.0 A)
+    everything.ms.enumerate(P[None], everything.ipot, some)
+    by_groups = everything.ms.full_pass(P).mean(0).double().cpu().numpy()
+    S = torch.as_tensor(pos, device=DEVICE, dtype=torch.float32)
+    finder = model("feff", 0.0, 6)
+    assert finder.ms.enumerate(S[None], finder.ipot, some) == counts  # FEFF's finder without a filter on the same sites: the same paths
+    by_finder = finder.ms.full_pass(P).mean(0).double().cpu().numpy() # ... evaluated on the moved atoms
+    assert size(by_groups - by_finder) < 1e-5 * size(by_finder)
+    four = model("feff", 0.0, 4)
+    four.ms.enumerate(S[None], four.ipot, some)
+    assert set(four.ms.counts) == {3, 4}
+    longer = size(by_finder - four.ms.full_pass(P).mean(0).double().cpu().numpy())
+    assert 1e-4 * size(by_finder) < longer < 0.2 * size(by_finder)   # the five-leg paths are there and they are small
+    kept = model("evax", 0.3, 6)
+    kept.ms.set_lattice(torch.as_tensor(pos, dtype=torch.float32), kept.ipot, some, kweight=2)
+    five = [t for t in kept.ms.types if t["legs"] == 5]
+    assert five and all(len(t["potentials"]) == 4 for t in five) and any(t["kept"] for t in five)
+    assert 5 in kept.ms.lattice and bool((kept.ms.lattice[5]["type"] >= 0).any())
+    with pytest.raises(ValueError, match="between 2 and 8"):
+        model("feff", 1.0, 9)

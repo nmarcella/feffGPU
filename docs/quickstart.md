@@ -5,7 +5,7 @@ This page takes a FEFF input file to chi(k) on the GPU. You need the installatio
 ## From the command line
 
 Any `feff.inp` written for an EXAFS calculation with FEFF 8 works. The repository has one for body-centered cubic
-tungsten (K edge, self-consistent potentials, paths to four legs):
+tungsten (K edge, self-consistent potentials, paths to four legs, `NLEG 4`):
 
 ```bash
 feffgpu tests/data/W/feff.inp --out chi.dat

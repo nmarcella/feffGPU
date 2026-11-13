@@ -15,7 +15,8 @@ calculation below:
    The fit gets what EvAX had: EvAX's own target spectrum, its cutoff, its choice of scattering paths
    (`criteria_rule = "evax"`), its wavelet misfit, its limit on the displacements, and potentials set up as EvAX sets
    them up.
-2. `rmc-exafs refine`, the default engine ([](refinement.md)), fits the structure from EvAX's start lattice.
+2. `rmc-exafs refine`, the default engine ([](refinement.md)), fits the structure from EvAX's start lattice with
+   small random displacements.
 3. The result is put next to EvAX's output files. EvAX itself is not run.
 
 The misfit in the table is EvAX's own measure: the root of the summed squared difference of the wavelet transforms
@@ -30,13 +31,18 @@ of model and target over the summed square of the target's. Three numbers are gi
 | Cu2O, Cu K edge | 384 | 44 h | 12 min (300 steps) | 0.193 | 0.199 | 0.185 |
 | Ga2O3, Ga K edge | 480 (here 600) | 23 h | 19 min (300 steps) | 0.121 | not comparable | 0.135 |
 | Au147 particle, Au L3 edge | 147 | 31 h | 7 min (300 steps) | 0.176 | 0.188 | 0.170 |
+| PdAu particle, Pd K edge (both edges in one fit) | 336 | 26 h | 38 min (500 steps) | 0.109 | 0.107 | 0.101 |
+| PdAu particle, Au L3 edge (the same fit) | | | | 0.174 | 0.184 | 0.174 |
 
 - **EvAX's run times** are read from the dates of its output files (from the first file written to the last); its
   parameter files ask for 16 threads. They were not measured here.
 - **Ga2O3**: EvAX's supercell (2 x 4 x 3) is narrower than twice the cutoff, which this package's forward model does
   not accept, so the fit here uses 2 x 5 x 3 cells and EvAX's atoms cannot be put through the same model.
+- **PdAu particle**: 10 Pd and 326 Au atoms, the two edges fitted together. The refinement was started from random
+  displacements of 0.06 Å and ran 500 steps. A first run from EvAX's own start (displacements of 0.01 Å) for 300
+  steps was not converged (0.148 and 0.203).
 
-![Four calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](commissioning_evax.png)
+![Five calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](commissioning_evax.png)
 
 *Black: EvAX's target (the measured spectrum as EvAX prepared it). Orange: EvAX's fit and its final atoms. Blue:
 this package's fit and its final atoms. The gray band is the R range of the fit.*
@@ -62,9 +68,19 @@ variance of the distance, EvAX's value first):
 | Au147 | Au-Au 2.30-3.50 | 9.5 | 2.878, 2.881 | 0.0220, 0.0203 |
 | | Au-Au 3.60-4.40 | 3.3 | 4.051, 4.048 | 0.0216, 0.0167 |
 | | Au-Au 4.40-5.30 | 12 | 4.915, 4.929 | 0.0361, 0.0348 |
+| PdAu particle | Pd-Au 2.30-3.50 | 10.4 | 2.875, 2.858 | 0.0117, 0.0085 |
+| | Pd-Pd 2.30-3.50 | 1.2 | 2.767, 2.821 | 0.0119, 0.0311 |
+| | Au-Au 2.30-3.50 | 9.4 | 2.825, 2.820 | 0.0172, 0.0125 |
+| | Au-Au 3.60-4.40 | 4.2 | 3.991, 3.985 | 0.0201, 0.0152 |
+| | Au-Au 4.40-5.30 | 15 | 4.884, 4.880 | 0.0215, 0.0143 |
 
 The numbers of neighbors are those of the start structure in both programs: every atom stays near its site. The
 ranges of Ga2O3 and Au147 hold several distances of the structure itself, so their variances include that spread.
+
+Where the two programs differ: the shell variances of the PdAu particle are a quarter to a third smaller here than in
+EvAX's structure, with the same fit to both spectra (see the first open point below). The Pd-Pd shell is 12 pairs
+in the whole model (1.2 neighbors for each of 10 Pd atoms); the two programs place it 0.05 Å apart, and neither
+result should be read as a measurement of it.
 
 **The pieces underneath were checked separately:**
 
@@ -79,15 +95,20 @@ ranges of Ga2O3 and Au147 hold several distances of the structure itself, so the
 
 ## What is still open
 
-- **The PdAu particle** (336 atoms, the Pd K and Au L3 edges fitted together): the first run reached 0.148 and 0.203
-  in 23 minutes against EvAX's 0.109 and 0.174. It is not converged; the start and the length of the refinement for
-  two edges with very different numbers of absorbers (10 Pd, 326 Au) are being worked on.
 - **The spread between independent refinements** (other seeds, other starts) has not been measured for these
   calculations. A gradient refinement moves the atoms only as far as the spectra ask for; where the spectra say
   little, shell widths stay nearer to those of the start than in a random search. Distances are much less affected.
-  The table above is one run each.
-- **Paths of more than four legs** are not computed by this package. Three calculations of the library whose EvAX
-  path lists contain them (anatase TiO2, ReO3, the W L3 edge of CoWO4 particles) are therefore not compared yet.
+  The tables above are one run each; the smaller variances of the PdAu particle are the clearest case so far.
+- **The start of a refinement of a particle.** From EvAX's own start of the PdAu particle (displacements of 0.01 Å)
+  300 steps were not enough; from 0.06 Å, 500 steps were. A rule for the start and the length is not settled.
+- **Three calculations with paths of five and six legs** (anatase TiO2, ReO3, CoWO4 particles with the Co K and W L3
+  edges) are being compared now that paths of up to eight legs are computed. With them, the kept groups of paths
+  are EvAX's own for 42 of 42 groups (ReO3), 45 of 45 (W edge of CoWO4) and 79 of 80 (TiO2). A first refinement of
+  ReO3 (28 minutes; EvAX's run 27 hours) reached a misfit of 0.125 against EvAX's 0.116, with the Re-O and Re-Re
+  distances within 0.003 Å of EvAX's and variances about twice EvAX's; it started from displacements of 0.1 Å,
+  which is too much disorder for this stiff lattice, and is being repeated.
+- **The runs in the tables above** used paths of up to four legs and starts of 0.05 to 0.1 Å. They are being repeated
+  with the settings that `rmc-exafs from-evax` now writes: EvAX's `N_legs` and a start of 0.05 Å.
 - **The population search with gradient steps** (`rmc-exafs run` with `gradient_steps`) holds the multiple scattering
   fixed during those steps and stalls on these systems ([](refinement.md)); the refinement is the route to use.
 - **Cells narrower than twice the cutoff** need a larger supercell here (Ga2O3 above).

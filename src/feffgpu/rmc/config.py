@@ -58,7 +58,8 @@ class EdgeSettings(_Model):
     window: WindowSettings = Field(..., description="The k window, k weight and R window: { kmin, kmax, dk, kweight, rmin, rmax }.")
     rpath: float = Field(6.0, gt=0, description="Pair and path cutoff (A): FEFF's RPATH, EvAX's R_max_for_FEFF. The periodic cell must be at least "
                                                 "twice as wide.")
-    nleg: int = Field(4, ge=2, le=4, description="Largest number of legs of the scattering paths: 2 (single scattering only), 3 or 4.")
+    nleg: int = Field(4, ge=2, le=8, description="Largest number of legs of the scattering paths: 2 (single scattering only) up to 8 "
+                      "[N_legs; EvAX's default is 8].")
     criteria: float = Field(2.5, ge=0, description="Importance filter of the multiple-scattering paths, in percent; what it measures is set "
                                                    "by criteria_rule (FEFF's CRITERIA, EvAX's FEFF_criteria).")
     criteria_rule: Literal["feff", "evax"] = Field("feff", description="'feff': every path of each structure as it is, judged alone by FEFF's "

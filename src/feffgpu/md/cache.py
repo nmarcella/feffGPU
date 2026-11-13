@@ -184,7 +184,8 @@ class CacheWriter:
                 g.create_dataset("frame_index", shape=(0,), maxshape=(None,), dtype="i8", chunks=(1024,))
                 g.create_dataset("phase_group", shape=(0,), maxshape=(None,), dtype="i4", chunks=(1024,))
                 g.create_dataset("n_absorbers", shape=(0,), maxshape=(None,), dtype="i4", chunks=(1024,))
-                g.create_dataset("n_paths", shape=(0, 2), maxshape=(None, 2), dtype="i8", chunks=(1024, 2))
+                legs = max(2, int(d["attrs"].get("nleg", 4)) - 2)                  # one column per number of legs from three on (at least two)
+                g.create_dataset("n_paths", shape=(0, legs), maxshape=(None, legs), dtype="i8", chunks=(1024, legs))
                 g.create_dataset("n_short_pairs", shape=(0,), maxshape=(None,), dtype="i8", chunks=(1024,))
                 g.create_dataset("seconds", shape=(0,), maxshape=(None,), dtype="f4", chunks=(1024,))
                 g.create_dataset("chi", shape=(0, NK), maxshape=(None, NK), dtype="f4", chunks=(64, NK), **z)
@@ -239,7 +240,7 @@ class CacheWriter:
             g["phase_group"][n0:n1] = [r["edges"][name][1] for r in rows]
             g["seconds"][n0:n1] = [r["seconds"] for r in rows]
             g["n_absorbers"][n0:n1] = [s.n_absorbers for s in spectra]
-            g["n_paths"][n0:n1] = [[s.n_paths.get(3, 0), s.n_paths.get(4, 0)] for s in spectra]
+            g["n_paths"][n0:n1] = [[s.n_paths.get(3 + j, 0) for j in range(g["n_paths"].shape[1])] for s in spectra]
             g["n_short_pairs"][n0:n1] = [s.n_short_pairs for s in spectra]
             g["chi"][n0:n1] = np.stack([s.chi for s in spectra]).astype(np.float32)
             g["chi_ss"][n0:n1] = np.stack([s.chi_ss for s in spectra]).astype(np.float32)

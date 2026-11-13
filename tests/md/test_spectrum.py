@@ -20,6 +20,43 @@ def test_path_type_names_merge_a_path_with_its_time_reverse():
     assert lut[1, 2] == lut[2, 1] == t.ms.index("C-C-Zn")                             # both orientations, one type
     lut4 = t.lookup(4, 3).numpy()
     assert lut4[1, 0, 1] == t.ms.index("C-Zn-C-Zn")                                   # the absorber itself in the middle
+    # five and more legs: one type per number of legs
+    long = PathTypes("C", ["Zn", "C"], ["C", "Zn"], 7, {1: "Zn", 2: "C"})
+    assert long.ms[:9] == t.ms and long.ms[9:] == ["C-(5 legs)", "C-(6 legs)", "C-(7 legs)"] == long.long
+    assert long.legs_of("C-(6 legs)") == 6 and long.legs_of("C-Zn-C-Zn") == 4 and long.long_index(5) == 9
+    assert long.normalize("C-(5 legs)") == "C-(5 legs)"
+    with pytest.raises(KeyError, match="known types"):
+        t.normalize("C-(5 legs)")                                                    # not a type of an edge with four legs
+    with pytest.raises(ValueError, match="between 2 and 8"):
+        PathTypes("C", ["Zn", "C"], ["C", "Zn"], 9, {1: "Zn", 2: "C"})
+
+
+@gpu
+def test_paths_of_five_legs_are_one_type_and_match_the_shared_classes():
+    from feffgpu.exafs import MultipleScattering, k_grid
+    from feffgpu.md.spectrum import EdgeSpectra
+    k = k_grid(16.0)
+    sites, sym, box = rock_salt(3)
+    pos = gaussian_frames(sites, 1, 0.04, seed=2)[0]
+    calc = EdgeSpectra(str(PHASE_ZNC), "C", {"Zn": 1, "C": 2}, ["C", "Zn"], k, rpath=6.0, nleg=5, criteria=0.0, device="cuda")
+    assert calc.types.names[-1] == "C-(5 legs)"
+    ab = np.nonzero(sym == "C")[0][::27]
+    s = calc.spectrum(pos, np.eye(3) * box, ab, sym)
+    assert s.n_paths.get(5, 0) > 0
+    part = s.chi_types[calc.types.names.index("C-(5 legs)")]
+    scale = np.abs(s.chi).max()
+    assert np.abs(part).max() > 0 and np.abs(s.chi_types.sum(0) - s.chi).max() < 1e-12 * scale + 1e-15
+    ipot = torch.as_tensor(np.where(sym == "Zn", 1, 2), device="cuda")
+    P = torch.tensor(pos, device="cuda", dtype=torch.float32)
+    ms = MultipleScattering(str(PHASE_ZNC), k, 0.0, box, rmax=6.0, critpw=0.0, nlegmax=5)
+    ms.enumerate(P[None], ipot, torch.as_tensor(ab, device="cuda"))
+    assert ms.counts.get(5, 0) == s.n_paths[5]
+    ref = ms.full_pass(P.reshape(-1, 3)).mean(0).double().cpu().numpy()
+    assert np.abs(s.chi_ms - ref).max() < 2e-4 * np.abs(ref).max()
+    four = MultipleScattering(str(PHASE_ZNC), k, 0.0, box, rmax=6.0, critpw=0.0, nlegmax=4)
+    four.enumerate(P[None], ipot, torch.as_tensor(ab, device="cuda"))
+    only_five = ref - four.full_pass(P.reshape(-1, 3)).mean(0).double().cpu().numpy()
+    assert np.abs(part - only_five).max() < 2e-4 * np.abs(ref).max()                  # the type holds the five-leg paths and nothing else
 
 
 def test_absorber_subsets_depend_only_on_seed_frame_and_element():

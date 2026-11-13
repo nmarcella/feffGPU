@@ -47,6 +47,12 @@ The first public version: one package with three tools.
   objective (the R-factor or a wavelet residual); the displacement limit and the closest distances of
   `[constraints]`. It includes the gradient of the multiple scattering, which the gradient steps of the population
   search leave out; where multiple scattering is strong those steps stall and the refinement converges.
+- **Scattering paths of up to eight legs.** The path finder builds paths of five and more legs atom by atom, up to
+  FEFF's own limit of nine; a FEFF input is followed to that limit (`NLEG`), and `nleg` in MD-EXAFS and RMC-EXAFS goes
+  to 8 (the default stays 4). Validated against FEFF itself: the same list of paths for every number of legs from two
+  to eight, the same path amplitudes, and chi(k) of two cases with `NLEG 8` to R-factors of 1.2e-6 and 6.0e-6
+  (`tools/validate_legs.py`, `data/validation/L000` and `L001`). In MD-EXAFS the paths of five and more legs are one
+  path type per number of legs. EvAX's rule (`criteria_rule = "evax"`) and `rmc-exafs from-evax` use EvAX's `N_legs`.
 - **The gradient refinement is the default engine of RMC-EXAFS**: the quick start, the example
   (`examples/rmc_exafs/config_refine.toml`) and the tutorial lead with `rmc-exafs refine`; a refinement also writes
   the files the analysis commands read, so `rmc-exafs shells`, `rdf`, `angles`, `short-pairs` and `plot` work on it.

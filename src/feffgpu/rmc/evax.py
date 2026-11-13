@@ -12,7 +12,7 @@ What the translation does, in EvAX's keywords:
 - ``Edge``, ``Edge_type``, ``k_min``, ``k_max``, ``k_power``, ``R_min``, ``R_max``, ``R0_for_WT``, ``R_max_for_FEFF``,
   ``FEFF_criteria``, ``Space``: one ``[[sample.edge]]`` block per spectrum, with ``criteria_rule = "evax"`` (EvAX's way
   of choosing the paths) and, for ``Space w``, ``objective = "wavelet"`` and a window without sills.
-- ``N_legs``: EvAX's default is 8; this package computes paths of up to four legs (``nleg = 4``).
+- ``N_legs``: the largest number of legs, ``nleg`` (EvAX's default is 8, the largest value here).
 - ``S02``, ``dE0``: EvAX divides the data by S02 and shifts the data; here both act on the model, so ``de0 = -dE0``.
   With ``target="evax"`` the spectrum written is EvAX's own target (``ipolEXAFS.dat`` of its output, already divided
   and shifted) and the configuration holds ``s02 = 1``, ``de0 = 0``.
@@ -385,12 +385,12 @@ class EvaxCalculation:
             wavelet = s.space.lower().startswith("w")
             if not wavelet:
                 notes.append(f"{s.name}: EvAX's Space {s.space!r} is fitted here as the R-factor of the Fourier transform with a Hanning window (sills 1 1/A)")
-            if s.nlegs > 4:
-                notes.append(f"{s.name}: EvAX's N_legs is {s.nlegs}; paths of up to four legs are computed here")
+            if s.nlegs > 8:
+                notes.append(f"{s.name}: EvAX's N_legs is {s.nlegs}; paths of up to eight legs are computed here")
             lines = ["  [[sample.edge]]", f'  name = "{s.name}"', f'  absorber = "{s.element}"', f'  chi = "{s.name}.chi"', f'  phase = "phase_{s.name}.pkl"',
                      "  potentials = { " + ", ".join(f"{el} = {j}" for el, j in ipot.items()) + " }",
                      f"  window = {{ kmin = {s.kmin}, kmax = {s.kmax}, dk = {0.0 if wavelet else 1.0}, kweight = {s.kweight}, rmin = {s.rmin}, rmax = {s.rmax} }}",
-                     f"  rpath = {s.rpath}", f"  nleg = {min(s.nlegs, 4)}", f"  criteria = {s.criteria}", '  criteria_rule = "evax"',
+                     f"  rpath = {s.rpath}", f"  nleg = {max(2, min(s.nlegs, 8))}", f"  criteria = {s.criteria}", '  criteria_rule = "evax"',
                      f"  group_tolerance = {float(p.get('Pathfinder_robustness', ['0.5'])[0])}", "  pair_min = 1.0"]
             if wavelet:
                 lines.append('  objective = "wavelet"')
@@ -417,9 +417,11 @@ class EvaxCalculation:
         d = frac[:, None, :] - (pos @ np.linalg.inv(cell))[None, :, :]
         d = np.linalg.norm((d - np.round(d)) @ cell, axis=2)
         nearest = float(d[d > 1e-6].min())
-        text += ["# the gradient refinement (`rmc-exafs refine rmc.toml`): far fewer evaluations than the search (`rmc-exafs run rmc.toml`)",
+        text += ["# the gradient refinement (`rmc-exafs refine rmc.toml`): far fewer evaluations than the search (`rmc-exafs run rmc.toml`).",
+                 "# Its start is the lattice with random displacements of thermal size (0.05 A per coordinate); EvAX's",
+                 "# Initial_displacement belongs to its search and is in [search] above.",
                  "[refine]", "copies = 1", "steps = 300", "ms_absorbers = 64", f"core_distance = {0.7 * nearest:.2f}",
-                 f"start_kick = {float(p.get('Initial_displacement', ['0.1'])[0]):g}", "log_every = 10", ""]
+                 "start_kick = 0.05", "log_every = 10", ""]
         (folder / "rmc.toml").write_text("\n".join(text))
         if not self.periodic:
             notes.append("no periodic boundaries in EvAX: the atoms are in a box so wide that no atom has an image within the cutoff")

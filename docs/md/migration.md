@@ -74,7 +74,7 @@ FEFF input tree, the FEFF executable, the launcher and the database are gone.
 - **The spectra.** The original ran FEFF on a cluster around each sampled absorber. Here single scattering comes from
   every pair within `rpath` through exact pair tables, and multiple scattering from FEFF's path finder and path stage
   for every absorber, on the GPU; the GPU code is validated against FEFF 8.5L ([](../validation/index.md)). Paths
-  have at most four legs, where the original's FEFF runs could use up to eight ([](path_types.md)).
+  have up to eight legs (`nleg`; the default is four), as the original's FEFF runs could ([](path_types.md)).
 - **The potentials.** The original computed potentials for every cluster (with self-consistency when its header asked
   for it). By default the new version computes them once per edge from a reference cluster; `per_frame` recomputes
   them at intervals. How much this changes a spectrum depends on the material and has not been measured for this

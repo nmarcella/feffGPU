@@ -56,7 +56,7 @@ and compares the results.
 | `File_with_structure`, `Supercell` | `structure`, `format`, `supercell` | EvAX's `.p1` files are VASP structure files with extra columns (`format = "vasp"`). |
 | `File_with_experimental_EXAFS_signal`, `Column_for_k`, `Column_for_chi` | `chi`, `chi_columns` | Columns count from zero here. |
 | `Edge`, `Edge_type` | `absorber`; the `EDGE` card of the input of the phase file | |
-| `R_max_for_FEFF`, `N_legs` | `rpath`, `nleg` | `nleg` is at most 4 here. |
+| `R_max_for_FEFF`, `N_legs` | `rpath`, `nleg` | `nleg` is at most 8, EvAX's default. |
 | `FEFF_criteria` | `criteria` with `criteria_rule = "evax"` | The same number means something else under FEFF's rule: see below. |
 | `r_scf`, `n_scf`, `ca`, `n_mix` | the `SCF` card of the input of the phase file | A negative `r_scf` is not "off": see below. |
 | `S02`, `dE0` | `[amplitude] mode = "fixed"`, `s02`, `de0 = -dE0` | The sign changes: see below. |
@@ -84,10 +84,10 @@ Five points need care:
     the third atom is not defined there, the chains split into small groups below the threshold, and only the
     opposite direction of the same paths is kept. This package reproduces that, so such a path enters with half of
     FEFF's degeneracy.
-  - Groups within a few percent of the threshold can differ: EvAX divides by a sum that holds paths of up to
-    `N_legs` (default 8) legs, this package by one of up to four legs. On six calculations of EvAX's library (an fcc
-    metal, two oxides, two metal particles, an oxide particle) the lists agree exactly or to one borderline group
-    out of 18 to 57.
+  - Groups within a few percent of the threshold can differ (the order in which paths of equal length are met is not
+    fixed). With the same `nleg` as EvAX's `N_legs`, on nine spectra of EvAX's library (an fcc metal, four oxides,
+    two metal particles, oxide particles) the lists agree exactly or to a few groups at the threshold, out of 18 to
+    80, the groups of five and six legs included.
 
   Under the default, `criteria_rule = "feff"`, the same number is applied to every single path of the disordered
   structure by FEFF's plane-wave estimate, relative to one nearest-neighbor path. That keeps fewer and other paths,
@@ -128,8 +128,10 @@ rmc-exafs refine rmc.toml                       # the gradient refinement ([refi
 rmc-exafs run rmc.toml                          # or EvAX's own search ([search]); as long as EvAX takes
 ```
 
-`rmc.toml` holds both sections. The search is written with EvAX's numbers (states, generations, step); the
-refinement with 300 steps from a start with EvAX's `Initial_displacement`.
+`rmc.toml` holds both sections. The search is written with EvAX's numbers (states, generations, step, start). The
+refinement is written with 300 steps from the lattice with normal displacements of 0.05 Å per coordinate, a
+start of thermal size: EvAX's `Initial_displacement` suits a long random search (0.01 Å in some of its published
+calculations) and is a poor start for a few hundred gradient steps.
 
 With `--outputs <EvAX's output directory> --target evax` the spectra written are EvAX's own targets and the start
 keeps EvAX's order of atoms, for a comparison with its result atom by atom. `--gradient-steps`, `--states` and

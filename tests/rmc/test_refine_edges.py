@@ -166,3 +166,53 @@ def test_it_converges_where_the_gradient_steps_of_the_search_stall():
     with_held_ms = float(edge.residual(edge.spectra(relaxed.view(1, -1, 3)))[0])
     assert refined < 0.05 * m0[0]
     assert with_held_ms > 3 * refined                                  # the held multiple scattering is no longer that of the moved atoms
+
+
+def test_a_refinement_with_five_leg_paths(tmp_path):
+    """`nleg = 5` in the configuration: the five-leg paths of a rock salt with a long cutoff are in the model, the
+    refinement runs and its record lists their groups."""
+    from feffgpu.rmc.cli import main
+    sym, pos, cell = rock_salt(3)
+    truth = pos + np.random.default_rng(7).normal(0, 0.05, pos.shape)
+    window = FitWindow(kmin=3.0, kmax=12.0, dk=1.0, kweight=2, rmin=1.0, rmax=5.0)
+    edge = EdgeModel("C", K, np.zeros(len(K)), window, str(PHASE_ZNC), sym, cell, "C", potentials={"Zn": 1, "C": 2}, rpath=6.0, nleg=5, criteria=0.3,
+                     device=DEVICE, criteria_rule="evax")
+    chis, _ = EdgeRefinement([edge], pos, sym, cell).spectra(truth[None])
+    assert 5 in edge.ms.lattice
+    write_poscar(tmp_path / "start.vasp", sym, pos, cell)
+    write_chi(tmp_path / "c.chi", K, chis[0].double().cpu().numpy())
+    (tmp_path / "r.toml").write_text(f"""
+[run]
+output = "out"
+[[sample]]
+label = "rs"
+structure = "start.vasp"
+  [[sample.edge]]
+  name = "C"
+  absorber = "C"
+  chi = "c.chi"
+  phase = "{PHASE_ZNC}"
+  potentials = {{ Zn = 1, C = 2 }}
+  window = {{ kmin = 3.0, kmax = 12.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 5.0 }}
+  rpath = 6.0
+  nleg = 5
+  criteria = 0.3
+  criteria_rule = "evax"
+[amplitude]
+mode = "fixed"
+[refine]
+copies = 1
+steps = 8
+step_size = 0.004
+ms_absorbers = 16
+value_every = 4
+core_distance = 1.5
+start_kick = 0.01
+log_every = 4
+""")
+    assert main(["refine", str(tmp_path / "r.toml"), "--json"]) == 0
+    rep = json.loads((tmp_path / "out/rs/refine.json").read_text())
+    assert rep["misfit_final"]["C"] < 0.5 * rep["misfit_start"]["C"]
+    assert any(t["kept"] and t["legs"] == 5 for t in rep["path_types"]["C"])
+    (tmp_path / "nine.toml").write_text((tmp_path / "r.toml").read_text().replace("nleg = 5", "nleg = 9"))
+    assert main(["refine", str(tmp_path / "nine.toml")]) == 2                        # at most eight legs

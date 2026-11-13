@@ -43,6 +43,19 @@ every case and compares; it needs a FEFF 8.5L build ([](../installation.md)).
 window, the same degeneracy-weighted path counts as FEFF, and the same Fermi level to 2e-6 hartree. They cover symmetry-degenerate paths on an ideal
 lattice, ground-state exchange, an ionized absorber and an M5 edge.
 
+**Paths of five to eight legs.** The cases above use `NLEG 4`. Two more made-up cases have a cutoff of several bond
+lengths and `NLEG 8`, so that long paths exist (`tools/validate_legs.py`; stored as `data/validation/L000` and
+`L001` and run by the same test):
+
+| Case | Paths by number of legs (summed degeneracy, FEFF and `feffgpu` alike) | R-factor between the two codes |
+|---|---|---|
+| L000: the rock salt of case A000 with a cutoff of 6.6 Å | 2: 115, 3: 1798, 4: 2229, 5: 152, 6: 24 | 1.2e-6 |
+| L001: a compact carbon cluster of 17 atoms, cutoff 6.2 Å | 2: 16, 3: 216, 4: 410, 5: 300, 6: 254, 8: 4 | 6.0e-6 |
+
+Separately, the path finder gives FEFF's own list of paths with the same degeneracies for every number of legs from
+two to eight on a compact cluster, and the path stage gives the amplitude of FEFF's own path routine for explicit
+paths of two to eight legs to the precision of FEFF's columns (`tests/test_pathfinder.py`).
+
 **Stage by stage.** With the optional FEFF library, tests compare intermediate quantities with FEFF's own routines:
 the free-atom orbitals and overlapped potentials (`tests/test_pot.py`), the energy mesh, the self-energy, the phase
 shifts and the dipole matrix elements (`tests/test_xsph.py`), and the path list (`tests/test_pathfinder.py`). One
@@ -74,7 +87,6 @@ was moved from, with the same random seed. See [](../rmc/quickstart.md) and the 
 
 ## What has not been measured yet
 
-- The effect of paths with more than four legs on a spectrum.
 - The accuracy of one reference phase file for all frames of a trajectory against potentials computed for every
   absorber ([](../concepts/potentials.md)).
 - Scaling with the number of GPUs ([](../parallel.md)).
@@ -93,8 +105,8 @@ FEFFGPU_POTPH_LIB=/path/to/libfeff8lpotph.so FEFF_HOME=/path/to/feff85exafs/loca
 ## Record of the full run for version 0.2.0
 
 Every test, with a GPU, the FEFF 8.5L library and xraylarch, in a fresh environment (Python 3.12, PyTorch 2.14 with
-CUDA 12.6 and Triton 3.8, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-13: 212 passed, none skipped, none
-failed, in 18 minutes. The run includes the tutorial notebooks. One of them works on the files of an EvAX
+CUDA 12.6 and Triton 3.8, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-13: 221 passed, none skipped, none
+failed, in 21 minutes. The run includes the tutorial notebooks. One of them works on the files of an EvAX
 calculation, which the repository does not hold; its test runs when the environment variable
 `FEFFGPU_EVAX_EXAMPLE` names their folder and is skipped otherwise.
 

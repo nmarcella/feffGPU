@@ -36,7 +36,7 @@ recomputed later. The pair table agrees with the path stage of each pair to its 
 tests to better than 1e-3 of the signal's maximum).
 
 **Multiple scattering.** For every absorber, FEFF's path finder (`feffgpu.exafs.MultipleScattering`) lists the
-three- and four-leg paths up to `rpath` that pass FEFF's plane-wave importance filter `criteria` (in percent of the
+paths of three to `nleg` legs up to `rpath` that pass FEFF's plane-wave importance filter `criteria` (in percent of the
 shortest single-scattering path's importance; 0 keeps every path). The path stage evaluates them, and each path is
 added to the part of its type and of its effective length, in bins of `ms_bin_width` (0.5 Å by default). The
 effective length is half the total path length (FEFF's reff).
@@ -62,10 +62,10 @@ max_distance = [3.0, 4.5, 5.0]       # Å: one limit per type, or one number for
 - in a run with several edges, each edge takes the types that start with its absorbing element, so one list can name
   the types of every edge; an edge with none of its types in the list keeps its total spectrum.
 
-## The limit of four legs
+## Paths of five and more legs
 
-The path finder of this package stops at four legs (`nleg` 2, 3 or 4). The FEFF calculations of `md_exafs` 2.0 could
-use paths of up to eight legs (`NLEG 8` in its examples). Paths of five and more legs are strongest in collinear
-arrangements (focusing paths along atom chains). Their contribution is left out here, and its size has not been
-measured for this package; it depends on the structure ([](../concepts/paths.md)). To estimate it for one
-cluster, run FEFF 8.5L itself with `NLEG 4` and with a larger `NLEG` and compare.
+`nleg` goes from 2 to 8; the default is 4. Paths of five and more legs exist only where `rpath` is at least 2.5 bond
+lengths, and they are strongest along chains of atoms ([](../concepts/paths.md)). They are few and their element
+sequences are many, so they are not split by element: each number of legs is one path type, named
+`"Zn-(5 legs)"`, `"Zn-(6 legs)"` and so on. In the cache, `n_paths` has one column per number of legs from three to
+`nleg`.

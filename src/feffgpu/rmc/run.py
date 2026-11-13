@@ -227,12 +227,12 @@ def run_refine(config, log=print):
     rmc = GpuRmc(phase, k, target, de0, model.cell, window=(e.window.kmin, e.window.kmax), r_range=(e.window.rmin, e.window.rmax), rmax=e.rpath,
                  critpw=e.criteria, r_min=rs.core_distance, core=rs.core_stiffness, ms=e.multiple_scattering and e.nleg >= 3,
                  kweight=e.window.kweight, dk=e.window.dk, device=device, criteria_rule=e.criteria_rule, sites=model.positions,
-                 group_tolerance=e.group_tolerance)
+                 group_tolerance=e.group_tolerance, nleg=e.nleg)
     path_types = [] if rmc.ms is None else rmc.ms.types
     if rmc.ms is not None and e.criteria_rule == "evax":
         kept = [t for t in path_types if t["kept"] and t["legs"] > 2]
         log(f"[{s.label}] paths chosen on the start lattice by EvAX's rule ({e.criteria} % of the size of the lattice's spectrum): {len(kept)} "
-            f"groups, paths per atom (each direction counted) " + ", ".join(f"{n} legs {sum(t['degeneracy'] for t in kept if t['legs'] == n):.0f}" for n in (3, 4)))
+            f"groups, paths per atom (each direction counted) " + ", ".join(f"{n} legs {sum(t['degeneracy'] for t in kept if t['legs'] == n):.0f}" for n in sorted({t['legs'] for t in kept})))
     rng = np.random.default_rng(cfg.run.seed)
     start = np.repeat(model.positions[None], rs.copies, 0) + (rng.normal(0.0, rs.start_kick, (rs.copies, model.n, 3)) if rs.start_kick > 0 else 0.0)
     chi0, M0 = rmc.spectrum_only(start)

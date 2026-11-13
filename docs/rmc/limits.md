@@ -44,11 +44,13 @@ pair distances.
 A larger S0² with broader distributions makes nearly the same spectrum. With S0² fitted, the widths of the shells are
 uncertain by this trade; the interval of S0² from the final refit does not include it ([](uncertainty.md)).
 
-## Paths up to four legs, within the cutoff
+## Paths up to `nleg` legs, within the cutoff
 
 The forward model includes single scattering for every pair within `rpath` and multiple scattering of paths with three
-and four legs, after FEFF's importance filter, within the same cutoff. Paths with more legs and paths longer than the
-cutoff are left out, as is the signal of atoms farther than `rpath`. Structure beyond the R window of the fit is not
+to `nleg` legs (at most eight; the default is four), after the importance filter, within the same cutoff. Paths with
+more legs and paths longer than the cutoff are left out, as is the signal of atoms farther than `rpath`. Where the
+cutoff is three or more bond lengths (oxides with short bonds, chains of atoms), paths of five and six legs carry
+signal: raise `nleg` there ([](../concepts/paths.md)). Structure beyond the R window of the fit is not
 constrained at all. The calculated spectrum has no Debye-Waller factor: all disorder is in the positions, so the
 static and the thermal parts of the disorder are not separated.
 

@@ -16,7 +16,7 @@ Three classes:
     (0.002 A), and the single-scattering spectrum of a whole configuration is the histogram of its pair distances
     times the table. Every pair within the cutoff is included (no importance filter).
 ``MultipleScattering``
-    The three- and four-leg paths of every absorber of every copy, enumerated by the path finder and evaluated by
+    The paths of three and more legs (up to nine) of every absorber of every copy, enumerated by the path finder and evaluated by
     the path stage; one spectrum per absorber, a full pass, and the exact gradient in passes of absorbers.
 """
 from __future__ import annotations
@@ -52,7 +52,7 @@ class PathSpectra:
     rmax : float
         Path cutoff (A, half the total path length, FEFF's RPATH).
     nlegmax : int
-        Largest number of legs (2, 3 or 4).
+        Largest number of legs (2 to 9).
     critpw : float
         FEFF's plane-wave importance filter (percent).
     chunk : int
@@ -321,7 +321,7 @@ class PairTables:
 
 
 class MultipleScattering:
-    """The multiple-scattering paths (three and four legs, or three only) of every absorber of every copy.
+    """The multiple-scattering paths (three legs up to ``nlegmax``, at most nine) of every absorber of every copy.
 
     The paths are enumerated by the GPU path finder and evaluated by the path stage. ``rows`` holds one spectrum per
     absorber; ``full_pass`` fills it, ``chi_absorbers`` evaluates a subset with a gradient, ``full_gradient`` gives the
@@ -356,6 +356,40 @@ class MultipleScattering:
         self.critpw, self.criteria_rule = float(critpw), criteria_rule
         self.lists, self.rows, self.n_abs = None, None, 0
         self.lattice, self.types, self.lattice_n = None, [], 0
+        self._batches = {}
+
+    def _batch(self, nleg, grad=False):
+        """Paths of ``nleg`` legs per batch of the path stage: ``chunk``, or fewer when the free memory of the GPU does
+        not hold that many. The memory of a path grows with its number of legs and is several times larger with a
+        gradient; it is measured once per number of legs on a batch of sixteen paths (about a tenth of a second)."""
+        key = (int(nleg), bool(grad))
+        if key in self._batches:
+            return self._batches[key]
+        size = self.chunk
+        if self.device.type == "cuda":
+            probe = 16
+            coords = torch.zeros(probe, nleg, 3, device=self.device, dtype=self.full.rdtype)
+            for j in range(1, nleg):                                    # a zigzag chain with legs of about 2.5 A
+                coords[:, j, 0] = 2.0 * j
+                coords[:, j, 1] = 1.5 * (j % 2)
+            ipots = torch.ones(probe, nleg, dtype=torch.long, device=self.device)
+            ipots[:, 0] = 0
+            torch.cuda.synchronize(self.device)
+            base = torch.cuda.memory_allocated(self.device)
+            torch.cuda.reset_peak_memory_stats(self.device)
+            if grad:
+                with torch.enable_grad():
+                    c = coords.clone().requires_grad_(True)
+                    checkpoint(self.full._chunk_chi, c, ipots, use_reentrant=False).sum().backward()
+            else:
+                with torch.no_grad():
+                    self.full._chunk_chi(coords, ipots)
+            per_path = max((torch.cuda.max_memory_allocated(self.device) - base) / probe, 1.0)
+            free, _ = torch.cuda.mem_get_info(self.device)
+            free += torch.cuda.memory_reserved(self.device) - torch.cuda.memory_allocated(self.device)       # the allocator's own cache can be used again
+            size = int(max(16, min(self.chunk, 0.5 * free / per_path)))
+        self._batches[key] = size
+        return size
 
     # -- EvAX's rule: the paths chosen on the lattice -----------------------------------------------------------------
     @staticmethod
@@ -445,10 +479,10 @@ class MultipleScattering:
         (``partialEXAFS.dat``): ``legs``, ``half_length`` of the founder (A), ``degeneracy`` (chains per absorber),
         ``importance`` (percent), ``potentials`` (of the founder's scatterers, in the order of travel) and ``kept``.
         Groups of two legs (single scattering) are listed for that comparison only: single scattering is always
-        computed for every pair within the cutoff, from the pair tables. Two differences from EvAX remain: the sum
-        that the importance is divided by holds paths of up to four legs here and of up to ``N_legs`` (default 8) in
-        EvAX, and chains of equal distance are met in an order that EvAX does not fix; both matter only for groups
-        within a few percent of the threshold.
+        computed for every pair within the cutoff, from the pair tables. The sum that the importance is divided by
+        holds the paths of up to ``nlegmax`` legs of this object (EvAX: ``N_legs``, default 8), so a smaller
+        ``nlegmax`` shifts the importance of groups near the threshold. Chains of equal distance are met in an order
+        that EvAX does not fix, which also matters only for groups within a few percent of the threshold.
 
         Returns the number of paths per number of legs."""
         dev = self.device
@@ -513,7 +547,8 @@ class MultipleScattering:
             G = fo.shape[0]
             count = torch.zeros(G, device=dev, dtype=torch.float64).index_add_(0, group, torch.ones(C, device=dev, dtype=torch.float64)) / A
             fp = path[fo]
-            chi = torch.cat([self.signals(coords[fp[s:s + self.chunk]], ipots[fp[s:s + self.chunk]])[0].double() for s in range(0, G, self.chunk)])
+            step = self._batch(nleg)
+            chi = torch.cat([self.signals(coords[fp[s:s + step]], ipots[fp[s:s + step]])[0].double() for s in range(0, G, step)])
             total += (count[:, None] * chi).sum(0)
             work[nleg] = dict(ipots=ipots, atoms=atoms, absr=absr, deg=deg, path=path, backward=backward, group=group, count=count, chi=chi,
                               half=legs[fo].sum(1) / 2, pots=pots[fo], P=P)
@@ -565,10 +600,11 @@ class MultipleScattering:
         not kept, and of the groups of two legs, are zero. The rows add up to the multiple-scattering spectrum."""
         out = torch.zeros(len(self.types), self.NK, device=self.device, dtype=torch.float64)
         for L in self.lists.values():
-            for s in range(0, L["atoms"].shape[0], self.chunk):
-                chi = self.path_signals(pos_flat, L, s, s + self.chunk)[0].double()
+            step = self._batch(L["atoms"].shape[1] + 1)
+            for s in range(0, L["atoms"].shape[0], step):
+                chi = self.path_signals(pos_flat, L, s, s + step)[0].double()
                 for key in ("type", "type_back"):                    # a path counts once in the group of each kept direction
-                    t = L[key][s:s + self.chunk]
+                    t = L[key][s:s + step]
                     out.index_add_(0, t[t >= 0], chi[t >= 0])
         return out / max(self.n_abs, 1)
 
@@ -591,8 +627,8 @@ class MultipleScattering:
             for c in range(C):
                 for a in absorbers.tolist():
                     kept, _ = self.full.finder.enumerate(pos[c], self.box, a, ipot)
-                    for nleg in (3, 4):
-                        if nleg not in kept or kept[nleg][0].shape[0] == 0:
+                    for nleg in sorted(kept):
+                        if nleg < 3 or kept[nleg][0].shape[0] == 0:
                             continue
                         coords, ipots, deg, xp, atoms = kept[nleg]
                         g = parts.setdefault(nleg, ([], [], [], []))
@@ -636,8 +672,9 @@ class MultipleScattering:
 
     def _chi_paths(self, pos_flat, L, idx, local, A, grad):
         out = torch.zeros(A, self.NK, device=self.device, dtype=self.full.rdtype)
-        for s in range(0, len(idx), self.chunk):
-            sl = idx[s:s + self.chunk]
+        step = self._batch(L["atoms"].shape[1] + 1, grad)
+        for s in range(0, len(idx), step):
+            sl = idx[s:s + step]
             atoms, absr = L["atoms"][sl], L["absorber"][sl]
             rel = pos_flat[atoms] - pos_flat[absr][:, None, :]
             rel = wrap(rel, self.box)

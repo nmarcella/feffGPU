@@ -7,7 +7,7 @@
 | `rdinp` | `feffgpu.inp.read_feff_inp` | the EXAFS cards of FEFF 8.5L: TITLE, EDGE / HOLE, S02, CONTROL, PRINT, SCF, EXCHANGE, EXAFS, RPATH, NLEG, CRITERIA, POTENTIALS, ATOMS, FOLP / AFOLP, INTERSTITIAL, JUMPRM, NOHOLE, RGRID, ION, UNFREEZEF and related cards |
 | `pot` (with `ATOM`) | `feffgpu.pot`, `feffgpu.scf`, `feffgpu.fms` | free atoms from the table; overlapped potentials, Hedin-Lundqvist exchange, the self-consistency loop with its full multiple-scattering Green's function; the result equals FEFF's `pot.pad` |
 | `xsph` | `feffgpu.xsph`, `feffgpu.kernels` | energy mesh, self-energy, phase shifts and dipole matrix elements per potential; the result equals FEFF's `phase.pad` |
-| `path` | `feffgpu.pathfinder` | two-, three- and four-leg paths within RPATH with FEFF's importance filter and degeneracy merging; any periodic cell or none |
+| `path` | `feffgpu.pathfinder` | paths of two to nine legs (FEFF's own limit) within RPATH with FEFF's importance filter and degeneracy merging; any periodic cell or none |
 | `genfmt` and `ff2chi` | `feffgpu.genfmt`, `feffgpu.stage`, `feffgpu.chain` | the signals of batches of paths (rotation matrices, Rehr-Albers separable propagators to second order) and their sum |
 
 ## Limits
@@ -15,7 +15,7 @@
 - **EXAFS only.** XANES and full multiple-scattering spectra, polarization and ellipticity, and spin-dependent
   potentials are not ported. A card for them raises an error that names the card.
 - **Edges.** K, L and M edges.
-- **Paths of two, three and four legs.** `NLEG` above 4 is treated as 4 ([](../concepts/paths.md)).
+- **Paths of up to nine legs**, FEFF's own limit (eight scatterers); the `NLEG` card lowers it ([](../concepts/paths.md)).
 - **No Debye-Waller models.** FEFF's `SIG2`, `DEBYE` and `CORRELATIONS` are not ported. Disorder comes from atom
   positions.
 - **Ions and unfrozen f electrons** (`ION`, `UNFREEZEF`) need FEFF's own atomic code through the optional library

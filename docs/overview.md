@@ -21,7 +21,8 @@ and one set of analysis functions. They are described in [](concepts/conventions
 ## What it is not
 
 - It calculates **EXAFS only**. XANES, full multiple-scattering spectra, polarization, and spin are not ported.
-- It keeps scattering paths of **up to four legs**.
+- It keeps scattering paths of **up to eight legs** in MD-EXAFS and RMC-EXAFS (the default there is four) and up to nine,
+  FEFF's own limit, for a FEFF input.
 - It needs an **NVIDIA GPU** with a CUDA build of PyTorch. It runs on a CPU for small inputs, slowly.
 - FEFF's own Debye-Waller models are not ported. In this package disorder comes from atom positions: from the
   frames of a trajectory or from the states of a reverse Monte Carlo model.

@@ -4,10 +4,10 @@
 
 In FEFF's theory the EXAFS of an absorbing atom is a sum over *scattering paths*. A path starts at the absorber,
 visits one or more neighbors, and returns. A path with one neighbor has two legs (out and back) and is called
-*single scattering*. Paths with two or three neighbors have three or four legs and are called *multiple scattering*.
+*single scattering*. Paths with two or more neighbors have three or more legs and are called *multiple scattering*.
 
 Each path contributes an oscillation in k whose frequency is set by half its total length and whose amplitude and
-phase come from the scattering properties of the atoms on it. `feffgpu` keeps paths of two, three and four legs.
+phase come from the scattering properties of the atoms on it. `feffgpu` computes paths of two to nine legs.
 
 ## The path finder
 
@@ -41,7 +41,7 @@ points.
 ## Multiple scattering of every absorber
 
 For multiple scattering there is no such shortcut. `feffgpu.exafs.MultipleScattering` runs the path finder for
-every absorber of every configuration and evaluates all three- and four-leg paths with the path stage. A path list
+every absorber of every configuration and evaluates all paths of three and more legs with the path stage. A path list
 stores atom indices, not coordinates, so the signal of a list always follows the atoms; only the *choice* of paths
 is held until the list is found again.
 
@@ -54,7 +54,13 @@ trajectory, or of the atoms of a disordered model, gives the damping, including 
 
 ## Limits
 
-Paths of more than four legs are not computed. Five- and six-leg paths exist, most strongly in close-packed and
-collinear arrangements. Their contribution is left out, and its size depends on the structure: it has not been
-measured for this package. To estimate it for a given cluster, run FEFF 8.5L itself with `NLEG 4` and with a larger
-`NLEG` and compare. If a FEFF input asks for `NLEG` above 4, `feffgpu` uses 4.
+**How many legs.** A FEFF input is followed up to FEFF's own limit of nine legs (eight scatterers; the `NLEG` card
+lowers it). MD-EXAFS and RMC-EXAFS take `nleg` from 2 to 8, with 4 as the default. Paths of two to four legs are
+found by direct enumeration, longer ones by extending partial paths atom by atom; both give FEFF's own list
+([](../validation/index.md)).
+
+A path of n legs is at least n bond lengths long, so paths of five and more legs exist only where the cutoff is
+several bond lengths: five legs from 2.5 bond lengths on, eight from 4. Within 6 to 7 Å that means five legs in
+metals and six in oxides with short bonds; they are strongest along chains of atoms (in ReO3 a third of the
+signal). Their number grows fast with the cutoff. The path finder stops with an error when one absorber has more
+than thirty million partial paths: lower the cutoff or `nleg` then.

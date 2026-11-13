@@ -39,7 +39,7 @@ class StatePaths:
     @torch.no_grad()
     def find(self, pos, absorbers=None):
         """The list of one configuration ``pos`` (n, 3): FEFF's path finder for every absorber (or for the given ones,
-        indices in the edge's atom order), the paths of three and four legs after the importance filter."""
+        indices in the edge's atom order), the paths of three and more legs after the importance filter."""
         if self.ms is None:
             return {}
         if self.ms.criteria_rule == "evax":                          # the paths of the lattice, whatever the positions
@@ -53,8 +53,8 @@ class StatePaths:
         parts = {}
         for a in absorbers:
             kept, _ = self.finder.enumerate(p, self.box, a, self.ipot)
-            for nleg in (3, 4):
-                if nleg not in kept or kept[nleg][0].shape[0] == 0:
+            for nleg in sorted(kept):
+                if nleg < 3 or kept[nleg][0].shape[0] == 0:
                     continue
                 coords, ipots, deg, xp, atoms = kept[nleg]
                 g = parts.setdefault(nleg, ([], [], [], []))
@@ -107,7 +107,7 @@ class StatePaths:
             return torch.zeros(m, self.NK, device=self.device)
         p, nk, ms = pos[:, self.keep], self.nk, self.ms
         cat = {}
-        for nleg in (3, 4):
+        for nleg in sorted({n for L in lists for n in L}):
             parts = [(j, L[nleg]) for j, L in enumerate(lists) if nleg in L and L[nleg]["atoms"].shape[0]]
             if parts:
                 cat[nleg] = dict(atoms=torch.cat([v["atoms"] + j * nk for j, v in parts]), absorber=torch.cat([v["absorber"] + j * nk for j, v in parts]),

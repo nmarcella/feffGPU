@@ -84,7 +84,7 @@ chi_ss = pairs.single_scattering(pos)                                         # 
 
 ms = MultipleScattering(phase, k, 0.0, cell, rmax=6.0, critpw=2.0, nlegmax=4, device="cuda")
 ms.enumerate(pos)                                                             # FEFF's path finder for every absorber
-chi_ms = ms.full_pass(pos.reshape(-1, 3)).mean(0)                             # three- and four-leg paths
+chi_ms = ms.full_pass(pos.reshape(-1, 3)).mean(0)                             # paths of three and four legs (nlegmax: up to nine)
 chi = chi_ss + chi_ms
 ```
 

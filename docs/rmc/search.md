@@ -10,7 +10,7 @@ difference is listed in [](evax_differences.md) with the switch that restores Ev
 - A **state** is one structure: `cells_per_state` copies of the model cell (EvAX: one) whose spectra are averaged.
 - Its **spectrum** for every edge is calculated from its own atoms: single scattering of every absorber-neighbor
   pair within `rpath`, exact (the pair histogram on a 0.002 Å grid times the two-leg signal of the path stage), plus
-  multiple scattering (paths of three and four legs) from the state's **own path lists** (below). S0² = 1 and no
+  multiple scattering (paths of three to `nleg` legs) from the state's **own path lists** (below). S0² = 1 and no
   Debye-Waller factor: all disorder is in the positions.
 - Its **misfit** is `M = sum_e w_e R_e` over the edges of the sample, `R_e` the R-factor of edge `e` (or its wavelet
   residual) with the current S0² and E0 shift on the model, and `w_e` the spectrum weights (EvAX's

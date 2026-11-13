@@ -147,17 +147,21 @@ paths, and compared with EvAX's output files. EvAX itself is not run. The misfit
 | Cu2O, Cu K edge | 384 | 44 h | 12 min | 0.193 | 0.185 |
 | Ga2O3, Ga K edge | 480 (here 600) | 23 h | 19 min | 0.121 | 0.135 |
 | Au147 particle, Au L3 edge | 147 | 31 h | 7 min | 0.176 | 0.170 |
+| PdAu particle, Pd K and Au L3 edges in one fit | 336 | 26 h | 38 min | 0.109 and 0.174 | 0.101 and 0.174 |
 
-![Four calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](docs/rmc/commissioning_evax.png)
+![Five calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](docs/rmc/commissioning_evax.png)
 
 Black: EvAX's target. Orange: EvAX's fit and final atoms. Blue: this package's fit and final atoms.
 
-- Shell distances of the two final structures agree within 0.003 Å for the Pt foil, Cu2O and Ga2O3 and within
-  0.014 Å for the Au147 particle; shell variances within a few percent to 25 %.
+- Shell distances of the two final structures agree within 0.003 Å for the Pt foil, Cu2O and Ga2O3, within 0.014 Å
+  for the Au147 particle and within 0.017 Å for the Pd-Au and Au-Au shells of the PdAu particle. Shell variances
+  agree within a few percent to 25 % for the first four; for the PdAu particle they are a quarter to a third smaller
+  here than in EvAX's structure.
 - EvAX's run times are read from the dates of its output files (16 threads); this package ran on one 12 GB GPU.
   These are single runs: the spread between independent refinements has not been measured yet.
-- Still open: a PdAu particle with two edges fitted together (not yet converged), paths of more than four legs
-  (needed by three further calculations of the library), and the spread between runs.
+- Still open: the spread between runs (and with it the smaller variances in the PdAu particle), a rule for the start
+  and the length of a refinement of a particle, and three further calculations of the library with paths of five
+  and six legs (anatase TiO2, ReO3, CoWO4), which are being compared now that paths of up to eight legs are computed.
 
 The full tables, what was checked underneath (the forward model against FEFF itself on EvAX's atoms, the lists of
 paths) and the sources of the calculations are in
@@ -186,7 +190,7 @@ an EvAX calculation, which you provide.
 - **Validation** is against FEFF 8.5L itself (random environments with absorbers from C to Au, K, L and M edges,
   many structures and cards: median R-factor 1.3e-6 between the two codes, worst 2.4e-3) and against synthetic
   targets with known answers. Literature values are not used as a yardstick.
-- **Limits**: EXAFS only (no XANES, polarization or spin); paths up to four legs; NVIDIA GPUs; one GPU per run
+- **Limits**: EXAFS only (no XANES, polarization or spin); paths up to eight legs (nine for a FEFF input); NVIDIA GPUs; one GPU per run
   today. MD-EXAFS can be split over several GPUs and nodes with shards; a pool over several GPUs is planned and its
   access points are in place (`feffgpu.parallel`).
 - **Agents**: an MCP server (`feffgpu-mcp`) lets an agent validate configurations, start runs as jobs, follow them
@@ -202,7 +206,7 @@ examples/           runnable examples with synthetic inputs
 tutorials/          notebooks for Google Colab or your own computer, with their synthetic data
 tools/              the free-atom table builder and the random-environment validation (need a FEFF 8.5L build)
 fortran/            the patch for feff85exafs and how to build the optional FEFF library
-data/validation/    four random environments with FEFF's own outputs (regression cases)
+data/validation/    four random environments and two cases with long paths, with FEFF's own outputs (regression cases)
 ```
 
 ## Contributing

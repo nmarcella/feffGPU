@@ -26,7 +26,7 @@ matches the target in R space:
 
 - **Single scattering** is exact at every step for every pair within the cutoff: the pair histogram times the two-leg
   signal of the path stage (`feffgpu.exafs.PairTables`), differentiable in the positions.
-- **Multiple scattering** (three- and four-leg paths) is exact too: FEFF's path finder ([](../citing.md)) enumerates the paths of every
+- **Multiple scattering** (paths of three to `nleg` legs) is exact too: FEFF's path finder ([](../citing.md)) enumerates the paths of every
   absorber of every copy (found again every `refresh_every` steps) and the path stage evaluates them; its value in the
   misfit is the mean over all absorbers of their last full pass (every `value_every` steps). Its gradient, too costly
   for every absorber at every step, comes from a rotating subset of `ms_absorbers` absorbers accumulated into a running

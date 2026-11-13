@@ -195,7 +195,7 @@ def run(cfg, shard=None, log=None, potentials_only=False):
     if done:
         log(f"continuing {path.name}: {len(done)} frames already there, {len(todo)} to compute")
     block = int(cfg.run.frames_per_block)
-    computed, seconds, paths3, paths4, short = 0, [], [], [], 0
+    computed, seconds, paths, short = 0, [], {}, 0
     t_loop = time.time()
     try:
         frames = reader.iter_frames(todo)
@@ -216,8 +216,8 @@ def run(cfg, shard=None, log=None, potentials_only=False):
                     calc = job.calcs[e.name][1]
                     group = writer.phase_group(e.name, key, calc.tables)
                     edges[e.name] = (res["edges"][e.name], group)
-                    paths3.append(res["edges"][e.name].n_paths.get(3, 0))
-                    paths4.append(res["edges"][e.name].n_paths.get(4, 0))
+                    for nleg, count in res["edges"][e.name].n_paths.items():
+                        paths[int(nleg)] = paths.get(int(nleg), 0) + int(count)
                     short += res["edges"][e.name].n_short_pairs
                 rows.append({"frame_index": res["frame_index"], "seconds": res["seconds"], "edges": edges})
                 seconds.append(res["seconds"])
@@ -238,7 +238,7 @@ def run(cfg, shard=None, log=None, potentials_only=False):
                "edges": {e.name: {"element": e.element, "edge": e.edge, "potentials": e.potentials,
                                   "path_types": descriptions[e.name]["types"].names, "absorber_atoms": int(len(candidates[e.name])),
                                   "absorbers_per_frame": str(cfg.frames.absorbers_per_frame)} for e in cfg.edge},
-               "mean_paths_per_frame": {"3": float(np.mean(paths3)) if paths3 else 0.0, "4": float(np.mean(paths4)) if paths4 else 0.0},
+               "mean_paths_per_frame": {str(n): paths.get(n, 0) / max(computed * len(cfg.edge), 1) for n in sorted(set(paths) | {3, 4})},
                "short_pairs": int(short), "device": device}
     name = "report.json" if shard.count == 1 else f"report.shard-{shard.index}-of-{shard.count}.json"
     _atomic_text(out / name, json.dumps(summary, indent=1))

@@ -10,7 +10,7 @@ Single scattering (two legs)
     histogram per scatterer potential, and multiplied by the tables. This gives the single-scattering part by
     neighbor element at no extra cost, and the histogram itself is kept so that any distance range can be selected
     later without a new calculation.
-Multiple scattering (three and four legs)
+Multiple scattering (three legs up to ``nleg``, at most eight)
     ``feffgpu.exafs.MultipleScattering`` enumerates the paths of every chosen absorber with FEFF's path finder (and
     its importance filter, ``criteria``); the path stage evaluates them. Each path is added to the part of its path
     type (``feffgpu.md.paths``) and of its effective length (half the path length, in bins of ``ms_bin_width``), so
@@ -144,8 +144,8 @@ class EdgeSpectra:
         self.k = np.asarray(k, float)
         self.NK = len(self.k)
         self.rpath, self.nleg, self.criteria = float(rpath), int(nleg), float(criteria)
-        if self.nleg not in (2, 3, 4):
-            raise ValueError(f"nleg must be 2, 3 or 4 (got {nleg}); the path finder of this package stops at four legs")
+        if not 2 <= self.nleg <= 8:
+            raise ValueError(f"nleg must be between 2 and 8 (got {nleg})")
         kmax_phase = phase_k_range(self.phase)
         if self.k[-1] > kmax_phase + 1e-6:
             raise ValueError(f"kmax {self.k[-1]:.2f} 1/A is beyond the phase file's k range ({kmax_phase:.2f} 1/A): lower kmax or build "
@@ -280,9 +280,12 @@ class EdgeSpectra:
                 counts[nleg] = counts.get(nleg, 0) + P
                 if P == 0:
                     continue
-                lut = self.types.lookup(nleg, npot, self.device)
                 seq = L["ipots"]
-                tidx = lut[seq[:, 1], seq[:, 2]] if nleg == 3 else lut[seq[:, 1], seq[:, 2], seq[:, 3]]
+                if nleg >= 5:                                                      # five and more legs: one type per number of legs
+                    tidx = torch.full((P,), self.types.long_index(nleg), device=self.device, dtype=torch.long)
+                else:
+                    lut = self.types.lookup(nleg, npot, self.device)
+                    tidx = lut[seq[:, 1], seq[:, 2]] if nleg == 3 else lut[seq[:, 1], seq[:, 2], seq[:, 3]]
                 if bool((tidx < 0).any()):
                     raise RuntimeError("a multiple-scattering path has no path type (inconsistent potentials)")
                 chunk = self._chunk_for(nleg)

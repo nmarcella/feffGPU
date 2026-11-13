@@ -100,9 +100,9 @@ def test_the_inputs_of_rmc_exafs(tmp_path):
     res = calc.write_inputs(tmp_path / "run", target="evax", gradient_steps=20, states=4, generations=50, energy_shift=-0.1)
     run = tmp_path / "run"
     assert sorted(p.name for p in run.iterdir()) == ["W_L3.chi", "feff_W_L3.inp", "rmc.toml", "start.extxyz"]
-    assert res["phase_commands"] == ["feffgpu phase feff_W_L3.inp phase_W_L3.pkl"] and any("N_legs" in n for n in res["notes"])
+    assert res["phase_commands"] == ["feffgpu phase feff_W_L3.inp phase_W_L3.pkl"] and not any("N_legs" in n for n in res["notes"])
     text = (run / "rmc.toml").read_text()
-    for piece in ('criteria_rule = "evax"', 'objective = "wavelet"', "wavelet_r0 = 3.0", "dk = 0.0", "nleg = 4", "rpath = 5.6", "criteria = 1.0",
+    for piece in ('criteria_rule = "evax"', 'objective = "wavelet"', "wavelet_r0 = 3.0", "dk = 0.0", "nleg = 8", "rpath = 5.6", "criteria = 1.0",
                   "s02 = { W_L3 = 1.0 }", "de0 = { W_L3 = -0.1000 }", "states = 4", "generations = 50", "froze_in = 200", "step = 0.004", "start_kick = 0.03",
                   "gradient_steps = 20", "max_displacement = 0.35", "[refine]", "steps = 300", "core_distance = 1.92"):
         assert piece in text, piece

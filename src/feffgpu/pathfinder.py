@@ -1,5 +1,8 @@
 """FEFF's path finder for one absorber of an arbitrary configuration, on the GPU (feff85exafs PATH/*.f).
 
+Paths of up to nine legs (FEFF's own limit, eight scatterers): two, three and four legs by direct enumeration, five
+and more by extending partial paths atom by atom.
+
 What FEFF does (paths.f, pathsd.f, outcrt.f, mcritk.f, prcrit.f, timrep.f) with the heap and keep limits at zero,
 the EXAFS default: enumerate every sequence of up to nleg-1 scatterers whose total length (out and back) is at
 most 2 rmax, the first and last atoms not the absorber, no atom repeated consecutively, the absorber allowed in the
@@ -20,6 +23,8 @@ from scipy.special import eval_legendre
 from .pad import PhaseData, read_phase_pad, BOHR
 
 NBETA = 40
+NLEG_MAX = 9                # FEFF's own limit: npatx = 8 scatterers in a path (dim.h), so at most nine legs
+PARTIAL_LIMIT = 30_000_000  # partial paths of one absorber held at once while paths of five and more legs are built
 
 
 class GPUPathFinder:
@@ -27,6 +32,8 @@ class GPUPathFinder:
         P = read_phase_pad(phase) if isinstance(phase, str) else phase
         self.P, self.device = P, torch.device(device)
         self.rmax, self.nlegmax, self.critpw = float(rmax), int(nlegmax), float(critpw)
+        if not 2 <= self.nlegmax <= NLEG_MAX:
+            raise ValueError(f"the largest number of legs must be between 2 and {NLEG_MAX}, FEFF's own limit (got {nlegmax})")
         self.merge_degenerate = merge_degenerate
         E = P.ne1
         lmax = P.lmax[:E]
@@ -153,6 +160,54 @@ class GPUPathFinder:
         return total[inverse]
 
     # -- enumeration ------------------------------------------------------------------------------------------
+    def _longer_paths(self, cl, inter, rel, two_r, chunk=65536):
+        """The paths of five and more legs of one absorber, built atom by atom.
+
+        ``cl`` are the scatterer candidates, ``inter`` the same atoms followed by the absorber (an intermediate atom
+        may be the absorber), ``rel`` the positions relative to the absorber. A partial path is kept while it can
+        still close within the cutoff (its length so far plus the way back to the absorber is at most ``two_r``); no
+        atom follows itself. A path ends on a scatterer. Of a path and its time reverse the one whose sequence comes
+        first is kept, with degeneracy 2 (1 if the sequence is its own reverse).
+
+        Yields ``(nleg, atoms (B, nleg - 1), degeneracy (B,))`` for nleg = 5 ... nlegmax."""
+        dev = self.device
+        nc, ni = len(cl), len(inter)
+        P = rel[inter]
+        D = torch.cdist(P, P)
+        back = torch.linalg.norm(P, dim=-1)                       # the way back to the absorber (0 from the absorber itself)
+        cols = torch.arange(ni, device=dev)
+        seq = torch.arange(nc, device=dev)[:, None]               # positions in inter; the first atom is a scatterer
+        length = back[:nc].clone()
+        for m in range(2, self.nlegmax):                          # after this round the partial paths hold m atoms: nleg = m + 1
+            new_seq, new_len, held = [], [], 0
+            for s in range(0, seq.shape[0], chunk):
+                sq, ln = seq[s:s + chunk], length[s:s + chunk]
+                tot = ln[:, None] + D[sq[:, -1]]                  # (B, ni): the length with one more atom
+                ok = (tot + back[None, :] <= two_r) & (cols[None, :] != sq[:, -1:])
+                i, j = torch.nonzero(ok, as_tuple=True)
+                new_seq.append(torch.cat([sq[i], j[:, None]], 1))
+                new_len.append(tot[i, j])
+                held += int(i.shape[0])
+                if held > PARTIAL_LIMIT:
+                    raise RuntimeError(f"more than {PARTIAL_LIMIT} partial paths of {m + 1} legs for one absorber within {self.rmax} A: "
+                                       "lower the path cutoff or the largest number of legs")
+            if held == 0:
+                return
+            seq, length = torch.cat(new_seq), torch.cat(new_len)
+            if m + 1 < 5:
+                continue
+            done = seq[seq[:, -1] != nc]                          # a path ends on a scatterer, not on the absorber
+            if done.shape[0] == 0:
+                continue
+            rev = done.flip(1)
+            differ = done != rev
+            rows = torch.arange(done.shape[0], device=dev)
+            first = torch.argmax(differ.int(), 1)
+            palindrome = ~differ.any(1)
+            keep = palindrome | (done[rows, first] < rev[rows, first])
+            done, palindrome = done[keep], palindrome[keep]
+            yield m + 1, inter[done], torch.where(palindrome, 1.0, 2.0).to(torch.float32)
+
     def enumerate(self, pos, box, absorber, ipot, chunk=256):
         """pos (n, 3) A, the periodic cell (a cubic length, a 3 x 3 cell or None), absorber index, ipot (n,) potential index per atom
         (the absorber's own potential is 0 when it is the absorber). Returns {nleg: (coords (B, nleg, 3) relative
@@ -206,6 +261,10 @@ class GPUPathFinder:
             atoms4 = torch.cat(parts) if parts else torch.zeros(0, 3, dtype=torch.long, device=dev)
             deg4 = torch.where(atoms4[:, 0] == atoms4[:, 2], 1.0, 2.0)
             out[4] = finish(4, atoms4, deg4)
+        # 5 legs and more: built atom by atom (few paths this long fit inside a cutoff of 6 to 7 A)
+        if self.nlegmax >= 5 and len(cl) > 1:
+            for nleg, atoms, deg in self._longer_paths(cl, inter, rel, two_r):
+                out[nleg] = finish(nleg, atoms, deg)
         if self.merge_degenerate and len(cl) > 1:
             out = self._merge_single_scattering(out, dev)
             ref = out[2][3][torch.argmin(out[2][0][:, 1].norm(dim=-1))] * out[2][2][torch.argmin(out[2][0][:, 1].norm(dim=-1))]

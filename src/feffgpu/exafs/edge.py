@@ -9,7 +9,7 @@ structure (copies of the cell, frames of a trajectory, states of a reverse Monte
   on the 0.002 A grid of the pair tables (``feffgpu.exafs.PairTables``: the two-leg signal of the path stage of every
   scattering potential), and the histogram times the tables is the spectrum, averaged over the absorbers. The
   histogram is differentiable in the positions, so the misfit has an exact gradient;
-- multiple scattering (three- and four-leg paths), exact for the paths it holds: FEFF's path finder enumerates the
+- multiple scattering (paths of three legs up to ``nleg``), exact for the paths it holds: FEFF's path finder enumerates the
   paths of every absorber and the path stage evaluates them (``feffgpu.exafs.MultipleScattering``).
 
 The calculated spectrum is FEFF's (S0^2 = 1, no Debye-Waller factor): the disorder is in the positions.
@@ -89,7 +89,7 @@ class EdgeModel(SpectrumComparison):
     rpath : float
         Pair and path cutoff (A, FEFF's RPATH: half the path length). The cell must be at least twice as wide.
     nleg : int
-        Largest number of legs of the paths (2: single scattering only, 3 or 4).
+        Largest number of legs of the paths (2: single scattering only; up to 8).
     criteria : float
         The importance filter of the multiple-scattering paths (percent).
     criteria_rule : str
@@ -143,8 +143,8 @@ class EdgeModel(SpectrumComparison):
                  device="cuda", criteria_rule="feff", group_tolerance=0.5):
         if objective not in OBJECTIVES:
             raise ValueError(f"{name}: unknown objective {objective!r}; use one of {sorted(OBJECTIVES)}")
-        if int(nleg) not in (2, 3, 4):
-            raise ValueError(f"{name}: nleg must be 2, 3 or 4 (got {nleg})")
+        if not 2 <= int(nleg) <= 8:
+            raise ValueError(f"{name}: nleg must be between 2 and 8 (got {nleg})")
         super().__init__(name, k, data, window, s02=s02, e0=e0, fit_s02=fit_s02, fit_e0=fit_e0, device=device)
         phase = load_phase(phase)
         self.phase = phase

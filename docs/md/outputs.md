@@ -86,7 +86,7 @@ Datasets with one row per frame (F rows):
 | `frame_index` | (F,) int64 | position of the frame in the trajectory |
 | `phase_group` | (F,) int32 | which entry of `phase_keys` the frame used |
 | `n_absorbers` | (F,) int32 | absorbing atoms averaged in the frame (the weight of the frame in averages) |
-| `n_paths` | (F, 2) int64 | multiple-scattering paths with three and four legs, over all absorbers of the frame |
+| `n_paths` | (F, max(2, nleg - 2)) int64 | multiple-scattering paths with three, four, ... `nleg` legs, over all absorbers of the frame |
 | `n_short_pairs` | (F,) int64 | absorber-neighbor pairs closer than `pair_rmin` (placed on the first point of the table; should be 0) |
 | `seconds` | (F,) float32 | computing time of the frame (all edges) |
 | `chi` | (F, NK) float32 | the total chi(k) of the frame: the mean over its absorbers |
