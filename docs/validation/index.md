@@ -5,6 +5,22 @@ from synthetic targets. Values from the literature are not used as a yardstick.
 
 ## Against FEFF 8.5L
 
+```{figure} agreement_all_elements.png
+:alt: Periodic table with the R-factor between FEFF 8.5L and feffgpu for the K, L3 and M5 edge of every element, a plot of feffgpu's spectra against FEFF's, and the R-factor against the atomic number
+
+Every element from hydrogen to einsteinium with each of its K, L3 and M5 edges: the R-factor between FEFF 8.5L and
+`feffgpu` (three squares per element), every point of every spectrum of one code against the other (inset), and the
+R-factor against the atomic number.
+```
+
+**Every element, edge by edge.** One recipe (a cluster of the element, self-consistent potentials, paths to four
+legs) was run for every element from Z = 1 to 99 and each of its K, L3 and M5 edges, 267 cases. The median R-factor
+between the two codes is 1.7e-6; 264 of the 267 are below 2e-5, and the largest is 1.0e-4. The Fermi levels of the
+self-consistent potentials agree to 5e-8 hartree in the median and 1.4e-5 at most. The number of paths, weighted by
+degeneracy, is identical in 252 cases; in the other 15 the codes differ by a few three- and four-leg paths at the
+threshold of the path filter, never in the single-scattering paths. The spectra of every case, the three cases above
+the limit and the table are on the page [](elements.md).
+
 ```{figure} agreement_by_element_and_edge.png
 :alt: The R-factor between FEFF 8.5L and feffgpu per element and edge, and the two spectra of every environment drawn over each other
 
@@ -24,7 +40,7 @@ every case and compares; it needs a FEFF 8.5L build ([](../installation.md)).
 
 **Regression cases.** Four of those environments are stored in `data/validation/` with FEFF's own outputs. The test
 `tests/test_validation_cases.py` runs the whole chain on each and requires an R-factor below 2e-5 in the analysis
-window and the same degeneracy-weighted path counts as FEFF. They cover symmetry-degenerate paths on an ideal
+window, the same degeneracy-weighted path counts as FEFF, and the same Fermi level to 2e-6 hartree. They cover symmetry-degenerate paths on an ideal
 lattice, ground-state exchange, an ionized absorber and an M5 edge.
 
 **Stage by stage.** With the optional FEFF library, tests compare intermediate quantities with FEFF's own routines:
@@ -77,7 +93,8 @@ FEFFGPU_POTPH_LIB=/path/to/libfeff8lpotph.so FEFF_HOME=/path/to/feff85exafs/loca
 ## Record of the full run for version 0.2.0
 
 Every test, with a GPU, the FEFF 8.5L library and xraylarch, in a fresh environment (Python 3.12, PyTorch 2.14 with
-CUDA 12.6, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-12: 168 passed, none skipped, none failed, in 8 minutes.
+CUDA 12.6 and Triton 3.8, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-13: 175 passed, none skipped, none
+failed, in 9 minutes.
 
 Tests carry the markers `gpu` (needs CUDA), `oracle` (needs the FEFF library) and `slow`. The hosted continuous
 integration has no GPU and runs the first line; the GPU and oracle tests are run by hand before each release and

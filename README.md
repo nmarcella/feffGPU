@@ -17,20 +17,39 @@ photoelectron wave number k; FEFF is the program that calculates chi(k) from ato
 ## The same output as FEFF 8.5L
 
 `feffgpu` is validated against FEFF 8.5L itself: the same `feff.inp` goes through both codes and the two chi(k) are
-compared. The figure shows all 34 random environments of that validation, one panel per absorbing element and edge,
-with FEFF 8.5L in black and `feffgpu` in blue on top, and above them the R-factor between the two codes.
+compared. The measure is the R-factor between the two codes: the squared difference of the Fourier transforms of the
+two spectra, divided by the squared transform of FEFF's.
+
+**Every element, edge by edge.** Every element from hydrogen to einsteinium, with each of its K, L3 and M5 edges:
+267 cases. In the periodic table below, the three squares of an element are its three edges, colored by the R-factor.
+The inset plots every point of every `feffgpu` spectrum against FEFF's.
+
+![feffgpu against FEFF 8.5L for the K, L3 and M5 edge of every element: a periodic table colored by the R-factor between the two codes, the spectra of one code against the other, and the R-factor against the atomic number](docs/validation/agreement_all_elements.png)
+
+- The median R-factor between the two codes is 1.7e-6. 264 of the 267 cases are below 2e-5, the limit that the
+  regression tests enforce; the three above it are at 1.0e-4, 4.6e-5 and 2.5e-5.
+- The Fermi levels of the self-consistent potentials agree to 5e-8 hartree in the median, 1.4e-5 at most.
+- The number of paths, weighted by degeneracy, is identical in 252 cases. In the other 15 the two codes differ by a few
+  three- and four-leg paths that sit at the threshold of the path filter, never in the single-scattering paths.
+- The recipe, the two spectra of every case drawn over each other, and the table are in
+  [docs/validation/elements.md](docs/validation/elements.md).
+
+**Mixed environments.** 34 environments drawn at random over elements, edges, structures and input cards, one panel
+per absorbing element and edge, with FEFF 8.5L in black and `feffgpu` in blue on top, and above them the R-factor
+between the two codes.
 
 ![feffgpu against FEFF 8.5L for 34 random environments: the R-factor between the two codes per element and edge, and the two spectra of every environment drawn over each other](docs/validation/agreement_by_element_and_edge.png)
 
 - 24 absorbing elements from C to Au; K, L2, L3 and M5 edges; lattices and random packings with disorder, vacancies,
   strain and surfaces; self-consistent and overlapped potentials; a range of FEFF input cards.
-- The median R-factor between the two codes is 1.3e-6, and 33 of the 34 are below 2e-5, the limit that the regression
-  tests enforce. The one above it (2.4e-3) is a random packing with an `ION` card.
+- The median R-factor between the two codes is 1.3e-6, and 33 of the 34 are below 2e-5. The one above it (2.4e-3) is a
+  random packing with an `ION` card.
 - The number of paths, weighted by degeneracy, is identical in 29 of the 34. In the other 5 the two codes differ by
   one path that sits at the importance threshold. The Fermi levels agree to 2e-6 hartree or better.
 
-The full table is in [docs/validation/random_environments.md](docs/validation/random_environments.md), the spectra
-behind the figure are in `data/validation/agreement.npz`, and `tools/plot_validation_agreement.py` redraws it.
+The full table is in [docs/validation/random_environments.md](docs/validation/random_environments.md). The spectra
+behind both figures are in `data/validation/`, and `tools/plot_validation_elements.py` and
+`tools/plot_validation_agreement.py` redraw them.
 
 ## Please cite FEFF and EvAX
 

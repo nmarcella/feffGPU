@@ -27,6 +27,19 @@
 ## Precision
 
 - The potentials and phase shifts are computed in float64 where FEFF uses double precision.
+- On a GPU the two sequential loops of the radial solver run as compiled kernels (`feffgpu.kernels`, written with
+  Triton, the kernel compiler that PyTorch installs). They repeat the plain PyTorch code operation by operation and
+  agree with it to rounding (about 1e-14). A kernel is compiled by whatever Triton version is installed, and a new
+  compiler can change what a kernel computes (see "Known differences" below). The package therefore carries a list of
+  the Triton versions its kernels were tested with before the release (3.1.0 and 3.8.0 for this version):
+  - with one of those versions the kernels are used as they are, and nothing is tested at run time;
+  - with any other version the kernels are compared with the plain code on a small built-in problem before they are
+    used, once per process (about a quarter of a second);
+  - `feffgpu doctor` runs that test on request, whatever the version.
+
+  If the kernels do not reproduce the plain code, the calculation stops with an error that says so. The package does
+  not change to the slower plain code on its own; `FEFFGPU_KERNELS=0` selects the plain code on purpose (same
+  results, potentials and phase shifts take longer).
 - The path stage runs in complex64 by default, which gives chi to a relative error of about 1e-6, and in
   complex128 on request (`GPUPathStage(phase, dtype=torch.complex128)`; `feffgpu.run` uses complex128).
 - The single scattering of `feffgpu.exafs.PairTables` interpolates the exact two-leg signal on a distance grid of
@@ -40,6 +53,16 @@
   FEFF then keeps one more partial wave at that energy. In the tungsten test set this happens at one energy
   (k = 32 1/Å, the partial wave l = 47, a scattering amplitude of 1.3e-3). The effect on chi(k) is far below the
   agreement reported in [](../validation/index.md).
+
+- **A kernel compiler that changed a result (fixed in 0.2.0).** Triton 3.8, which comes with PyTorch 2.14, compiles
+  one loop pattern differently from Triton 3.1: a group of variables that start as the same value and are shifted
+  inside a loop keep their start value. The outward kernel of version 0.1.0 used that pattern in its start-up steps.
+  With the newer compiler its wave functions were off by a few percent from the sixth radial point on. Most of that
+  cancels in the phase shifts: in the sweep over all elements ([](../validation/elements.md)) chi(k) still agreed with
+  FEFF 8.5L to an R-factor of 1.9e-6 in the median (9e-4 at most). The Fermi level of self-consistent potentials
+  moved by about 3e-5 hartree (up to 8e-4), and in at least one case (palladium K) the self-consistency loop then
+  stopped at another iteration than FEFF's. Version 0.2.0 does not use the pattern, tests the kernels as described
+  above, and tests the Fermi level against FEFF's on the GPU. With the older compiler version 0.1.0 was not affected.
 
 ## Phase files are pickles
 

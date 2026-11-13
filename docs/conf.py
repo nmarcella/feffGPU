@@ -26,7 +26,7 @@ myst_enable_extensions = ["colon_fence", "deflist", "dollarmath", "amsmath"]
 myst_heading_anchors = 3
 source_suffix = {".md": "markdown"}
 root_doc = "index"
-exclude_patterns = ["_build", "**/_make_*.py", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "**/_make_*.py", "Thumbs.db", ".DS_Store", "validation/elements_table.md", "validation/elements_summary.md"]      # included by validation/elements.md
 suppress_warnings = ["myst.header"]
 
 autodoc_default_options = {"members": True, "undoc-members": False, "show-inheritance": True}
@@ -42,6 +42,16 @@ html_theme = "furo"
 html_title = f"feffgpu {release}"
 copybutton_prompt_text = r"\$ |>>> "
 copybutton_prompt_is_regexp = True
+
+
+def _expand_includes(text, folder):
+    """Replace a MyST include block by the text of the file, so that llms-full.txt holds the page as it is read."""
+    import re
+
+    def sub(m):
+        f = folder / m.group(1).strip()
+        return f.read_text().strip() if f.is_file() else m.group(0)
+    return re.sub(r"```\{include\}[ \t]*([^\n]+)\n```", sub, text)
 
 
 def _write_llms_files(app, exception):
@@ -72,7 +82,7 @@ def _write_llms_files(app, exception):
         f = src / (name + ".md")
         if not f.exists() or name.startswith("api/_generated"):
             continue
-        text = f.read_text()
+        text = _expand_includes(f.read_text(), f.parent)
         title = next((ln.lstrip("# ").strip() for ln in text.splitlines() if ln.startswith("# ")), name)
         url = f"{base}/{name}.html" if base else f"{name}.html"
         index.append(f"- [{title}]({url})")

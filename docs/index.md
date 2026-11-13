@@ -107,6 +107,7 @@ agents
 :maxdepth: 1
 
 validation/index
+validation/elements
 validation/random_environments
 ```
 

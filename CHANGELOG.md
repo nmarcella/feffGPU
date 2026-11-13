@@ -32,6 +32,17 @@ The first public version: one package with three tools.
   (`docs/validation/agreement_by_element_and_edge.png`, drawn by `tools/plot_validation_agreement.py` from
   `data/validation/agreement.npz`), and tests of the window, the Fourier transform and the R-factor against xraylarch
   itself (`tests/test_larch_conventions.py`).
+- **Validation element by element and edge by edge**: every element from hydrogen to einsteinium with each of its K,
+  L3 and M5 edges (267 cases) through FEFF 8.5L and through `feffgpu` (`tools/validate_elements.py`,
+  `tools/plot_validation_elements.py`, `data/validation/elements.npz`, the documentation page "Every element, edge by
+  edge", and the figure on the main page). Median R-factor between the two codes 1.7e-6; 264 of 267 below 2e-5.
+- **A test of the compiled GPU kernels against the plain PyTorch code.** The kernels are released with the list of
+  Triton versions they were tested with (3.1.0 and 3.8.0). With one of those nothing is tested at run time; with any
+  other version the kernels are compared with the plain code on a small built-in problem once per process (about a
+  quarter of a second) before they are used, and `feffgpu doctor` runs the test on request. If the kernels differ, the
+  calculation stops with an error; there is no automatic change to slower code. `FEFFGPU_KERNELS=0` selects the plain
+  code on purpose. `tests/test_kernels.py` and the stored validation cases now also test the Fermi level against
+  FEFF's.
 
 ### Changed
 
@@ -50,6 +61,13 @@ The first public version: one package with three tools.
 - In some PyTorch builds a batched linear solve on the CPU fails after `torch.set_num_threads()` was called before the
   first linear-algebra call of the process. The potentials stage now falls back to solving one matrix at a time and
   checks the result.
+
+- **The outward GPU kernel of the radial solver gave different numbers under Triton 3.8** (the kernel compiler that
+  comes with PyTorch 2.14) than under Triton 3.1: the newer compiler handles a group of loop variables that start as
+  the same value and are shifted inside the loop differently. chi(k) still agreed with FEFF 8.5L to an R-factor of
+  about 2e-6 in the median (9e-4 at most over all elements), but the Fermi level of self-consistent potentials was off
+  by about 3e-5 hartree (up to 8e-4). The kernel no longer uses that pattern and agrees with the plain code to
+  rounding under both compilers. The sweep over all elements found it.
 
 ### Notes
 
