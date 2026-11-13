@@ -93,8 +93,10 @@ FEFFGPU_POTPH_LIB=/path/to/libfeff8lpotph.so FEFF_HOME=/path/to/feff85exafs/loca
 ## Record of the full run for version 0.2.0
 
 Every test, with a GPU, the FEFF 8.5L library and xraylarch, in a fresh environment (Python 3.12, PyTorch 2.14 with
-CUDA 12.6 and Triton 3.8, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-13: 175 passed, none skipped, none
-failed, in 9 minutes.
+CUDA 12.6 and Triton 3.8, xraylarch 2026.3, one 12 GB NVIDIA GPU), on 2026-11-13: 189 passed, none skipped, none
+failed, in 14 minutes. The run includes the tutorial notebooks. One of them works on the files of an EvAX
+calculation, which the repository does not hold; its test runs when the environment variable
+`FEFFGPU_EVAX_EXAMPLE` names their folder and is skipped otherwise.
 
 Tests carry the markers `gpu` (needs CUDA), `oracle` (needs the FEFF library) and `slow`. The hosted continuous
 integration has no GPU and runs the first line; the GPU and oracle tests are run by hand before each release and

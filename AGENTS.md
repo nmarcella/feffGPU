@@ -98,6 +98,7 @@ src/feffgpu/
 tests/            test_*.py (core, shared layer, agent interface), tests/md, tests/rmc
 docs/             Sphinx + MyST sources (Read the Docs); docs/md and docs/rmc are the tools' user guides
 examples/         runnable examples that generate their own synthetic inputs
+tutorials/        notebooks (Colab or local) with synthetic data; tools/run_tutorials.py runs them, stores the outputs
 tools/            build_atoms_table.py, validate_random.py (need the FEFF 8.5L library)
 fortran/          the patch for feff85exafs and how to build the optional library
 data/validation/  four random environments with FEFF's own outputs (regression cases)

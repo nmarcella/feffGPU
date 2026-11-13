@@ -40,6 +40,7 @@ mace = ["mace-torch"]
 mda = ["MDAnalysis>=2.6"]
 larch = ["xraylarch"]
 mcp = ["mcp>=1.2"]
+notebooks = ["nbclient>=0.8", "nbformat>=5", "ipykernel>=6"]
 
 [project.scripts]
 feffgpu = "feffgpu.cli:main"

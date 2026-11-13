@@ -64,7 +64,8 @@ def shifted_target(k, kd, cd, s02=1.0, de0=0.0):
     """The measured chi ``(kd, cd)`` divided by S0^2 and read at ``k' = sqrt(k^2 - dE0 ETOK)`` on the grid ``k``
     (EvAX's convention, in which the data carry the amplitude and the energy shift); zero where the data do not
     reach. The fits of this package keep S0^2 and the energy shift on the model instead (``feffgpu.exafs.EdgeModel``);
-    this function is for inputs prepared the EvAX way."""
+    this function is for inputs prepared the EvAX way. EvAX itself multiplies the data by ``k^k_power`` before the
+    shift, so its own target is this spectrum times ``(k'/k)^k_power``."""
     target = np.zeros_like(k)
     e = k ** 2 - de0 * ETOK
     ks = np.sign(e) * np.sqrt(np.abs(e))

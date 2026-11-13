@@ -45,6 +45,45 @@ shift); `objective = "wavelet"` gives EvAX's default fit space.
 | 18 | How the box acts | A move that puts an atom outside is halved, up to 100 times, then rejected. | Without gradient steps the same (`box_rule = "auto"` or `"halve"`; the halving acts on the random step after any rearrangement). With gradient steps a projection: an atom outside is put back on the limit along its displacement, after the random move and after every gradient step. | A relaxation of many steps cannot be halved as one move. Atoms collect on the limit with a projection; the records give the share at the limit. | `box_rule = "halve"` (only without gradient steps) |
 | 19 | Closest distances | Hard: a move with a pair below the minimum of its element pair is rejected (`Potential_type hardsphere`). | The same by default (`reject_trials = true`, `closest_tolerance = 0`). During gradient steps the limits also act as springs (`spring`, eV/Å²), which give a force at the wall; with springs, pairs can sit slightly below a limit, so `closest_tolerance` sets how far below a configuration may go before it is refused. | The gradient steps need a force at the wall. | `reject_trials = false` refuses only bred children (springs alone keep pairs near the limits) |
 
+## Translating an EvAX parameter file
+
+The keys of [](configuration.md) name EvAX's keyword in brackets. The keywords of a typical EvAX parameter file map
+as follows; the tutorial notebook `tutorials/03_rmc_exafs_from_evax.ipynb` does it for a finished EvAX calculation
+and compares the results.
+
+| EvAX | Here | Note |
+|---|---|---|
+| `File_with_structure`, `Supercell` | `structure`, `format`, `supercell` | EvAX's `.p1` files are VASP structure files with extra columns (`format = "vasp"`). |
+| `File_with_experimental_EXAFS_signal`, `Column_for_k`, `Column_for_chi` | `chi`, `chi_columns` | Columns count from zero here. |
+| `Edge`, `Edge_type` | `absorber`; the `EDGE` card of the input of the phase file | |
+| `R_max_for_FEFF`, `N_legs`, `FEFF_criteria` | `rpath`, `nleg`, `criteria` | `nleg` is at most 4 here. |
+| `r_scf`, `n_scf`, `ca`, `n_mix` | the `SCF` card of the input of the phase file | A negative `r_scf` is not "off": see below. |
+| `S02`, `dE0` | `[amplitude] mode = "fixed"`, `s02`, `de0 = -dE0` | The sign changes: see below. |
+| `Space w`, `k_min`, `k_max`, `k_power`, `R_min`, `R_max`, `R0_for_WT` | `objective = "wavelet"`, `wavelet_r0`, `window = { kmin, kmax, dk = 0, kweight, rmin, rmax }` | In wavelet space EvAX uses the range from `k_min` to `k_max` without a taper: `dk = 0`. |
+| `Number_of_states`, `Froze_in`, `Stop_after`, `Maximal_step_length`, `Acceptance_rate`, `Initial_displacement`, `Update_basis_every_...` | `[search] states`, `froze_in`, `generations`, `step`, `acceptance`, `start_kick`, `paths_every` | EvAX runs until it is stopped with `Stop_after -1`; here the number of generations is stated. |
+| `Potential_type box`, `Maximal_displacement` | `[constraints] max_displacement` | |
+| `Maximal_number_of_clusters`, `Clustering_precision`, `Expansion_accuracy`, `Pathfinder_robustness` | none | Every path of every atom is computed (row 6). |
+
+Three points need care:
+
+- **A negative `r_scf` means that EvAX chooses the radius** of the self-consistency loop of the potentials. It takes
+  the nearest-neighbor distance d1, then the first neighbor distance at least 1 Å longer than d1, then the first
+  one at least 0.1 d1 longer than that. This last distance is the radius (for fcc copper 4.43 Å, the third shell),
+  enlarged if needed until every element has an atom inside. EvAX always runs FEFF with an `SCF` card. A phase file
+  without self-consistency has its energy origin elsewhere (about 2 eV for copper), so the energy shift of the EvAX
+  run no longer fits.
+- **EvAX applies S0² and the energy shift to the data**: it divides the measured spectrum by S0² and reads it at
+  `k' = sqrt(k² - 0.2625 dE0)`. This package applies both to the calculated spectrum (row 2), so the same alignment
+  is `de0 = -dE0`. One difference remains: EvAX multiplies the data by `k^k_power` before the shift, so its target
+  carries the factor `(k'/k)^k_power` relative to shifted data. `feffgpu.exafs.shifted_target` gives the shifted
+  data without this factor.
+- **The energy shift belongs to the potentials it was found with.** With other potentials (another radius of the
+  self-consistency loop, another cluster) it is another number; `[amplitude] mode = "fit"` finds it.
+
+A literal translation of a typical EvAX run (tens of states, thousands of generations, no gradient steps) costs
+what it costs in EvAX: every state's multiple scattering is computed in every generation. `gradient_steps` and, for
+structures of one element, `rmc-exafs refine` ([](refinement.md)) need far fewer evaluations.
+
 ## What is not EvAX's and has no counterpart there
 
 - S0² and the E0 shift of several samples fitted jointly, with intervals from the curvature of the misfit

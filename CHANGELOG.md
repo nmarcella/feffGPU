@@ -28,6 +28,13 @@ The first public version: one package with three tools.
   jobs, follow them, and read results and documentation, inside one workspace directory.
 - **Documentation** for Read the Docs, with the API reference, and `llms.txt` / `llms-full.txt` for agents.
 - `AGENTS.md`, `CONTRIBUTING.md`, a code of conduct, continuous integration for the tests that need no GPU.
+- **Tutorials** (`tutorials/`): notebooks for Google Colab or a local Jupyter. MD-EXAFS step by step on a short
+  synthetic trajectory of bcc iron; MD-EXAFS for a trajectory that you upload; RMC-EXAFS from a finished EvAX
+  calculation (translation of the parameter file, checks against EvAX's output files, a fit and the comparison of
+  the fitted structures; it needs the files of the EvAX example, which the repository does not hold).
+  `tools/run_tutorials.py` runs the notebooks and stores their outputs; the extra `feffgpu[notebooks]` installs what
+  that needs.
+- How to translate an EvAX parameter file, in "Differences from EvAX".
 - A figure of the agreement with FEFF 8.5L for every environment of the validation, by element and edge
   (`docs/validation/agreement_by_element_and_edge.png`, drawn by `tools/plot_validation_agreement.py` from
   `data/validation/agreement.npz`), and tests of the window, the Fourier transform and the R-factor against xraylarch
@@ -61,6 +68,10 @@ The first public version: one package with three tools.
 - In some PyTorch builds a batched linear solve on the CPU fails after `torch.set_num_threads()` was called before the
   first linear-algebra call of the process. The potentials stage now falls back to solving one matrix at a time and
   checks the result.
+- A population search with EvAX's wavelet misfit (`objective = "wavelet"`) stopped at its first evaluation with an
+  error about number types. The wavelet misfit is now returned in double precision, like the R-factor.
+- `feffgpu.compare.hanning` and `r_factor` returned "not a number" for a window without sills (`dk = 0`, EvAX's
+  default window). They now give the rectangular window, as the torch form does.
 
 - **The outward GPU kernel of the radial solver gave different numbers under Triton 3.8** (the kernel compiler that
   comes with PyTorch 2.14) than under Triton 3.1: the newer compiler handles a group of loop variables that start as

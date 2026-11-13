@@ -23,3 +23,11 @@ runs/
 docs/_build/
 .ruff_cache/
 docs/api/_generated/
+
+# what the tutorial notebooks write when they are run in the checkout
+tutorials/fe_tutorial/
+tutorials/my_run/
+tutorials/cu_evax/
+tutorials/evax_example/
+tutorials/*.zip
+.ipynb_checkpoints/

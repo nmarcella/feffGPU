@@ -53,6 +53,7 @@ please cite that work: see [](citing.md).
 overview
 installation
 quickstart
+tutorials
 ```
 
 ```{toctree}

@@ -131,6 +131,21 @@ rmc-exafs shells runs/my_fit --shell Zn-C:1.8:2.6      # N, R, MSRD by integrati
 `rmc-exafs schema` print every key. Examples that generate their own synthetic inputs are in
 [`examples/`](examples/). The quick starts are in the documentation.
 
+## Tutorials
+
+Notebooks that run on Google Colab (which provides NVIDIA GPUs) or on your own computer, stored with their outputs
+so that they can be read here: [`tutorials/`](tutorials/).
+
+| | |
+|---|---|
+| [MD-EXAFS from a trajectory: a worked example with iron](tutorials/01_md_exafs_iron.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/01_md_exafs_iron.ipynb) |
+| [MD-EXAFS with your own trajectory](tutorials/02_md_exafs_your_trajectory.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/02_md_exafs_your_trajectory.ipynb) |
+| [RMC-EXAFS from an EvAX project: copper foil](tutorials/03_rmc_exafs_from_evax.ipynb) (needs the files of the EvAX example) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/03_rmc_exafs_from_evax.ipynb) |
+
+The data of the MD-EXAFS tutorials are synthetic: a short trajectory of bcc iron made with springs and a thermostat,
+and a spectrum with a known S0² and E0 shift put in. The RMC-EXAFS tutorial works on the input and output files of
+an EvAX calculation, which you provide.
+
 ## What to expect
 
 - **Conventions** are xraylarch's (and so Athena's and Artemis's): the Hanning window by `kmin`, `kmax`, `dk`; the
@@ -152,6 +167,7 @@ src/feffgpu/        the package: the FEFF pipeline, exafs/ io/ analysis/ paralle
 tests/              validation against FEFF's own outputs, the shared layer, MD-EXAFS, RMC-EXAFS, the agent interface
 docs/               the documentation (Sphinx, Read the Docs)
 examples/           runnable examples with synthetic inputs
+tutorials/          notebooks for Google Colab or your own computer, with their synthetic data
 tools/              the free-atom table builder and the random-environment validation (need a FEFF 8.5L build)
 fortran/            the patch for feff85exafs and how to build the optional FEFF library
 data/validation/    four random environments with FEFF's own outputs (regression cases)
