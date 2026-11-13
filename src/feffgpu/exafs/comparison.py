@@ -147,7 +147,7 @@ class SpectrumComparison:
         are used."""
         m = self.model(chi, s02, de0)
         if self.wavelet is not None:
-            return self.wavelet.residual(m)
+            return self.wavelet.residual(m).double()            # double, as the R-factor below (the misfit sums are double)
         cr = ft(m.to(torch.float64), self.kt.double(), self.win.double(), kweight=self.kweight)[:, self.rmask]
         return ((cr - self.data_r[None]).abs() ** 2).sum(1) / self.data_norm
 

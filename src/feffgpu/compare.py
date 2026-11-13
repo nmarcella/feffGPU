@@ -4,6 +4,11 @@ import numpy as np
 
 
 def hanning(k, kmin, kmax, dk=1.0):
+    """The Hanning window with sills centered on ``kmin`` and ``kmax`` and ``dk`` wide; ``dk = 0`` gives the rectangular
+    window from ``kmin`` to ``kmax`` (as ``feffgpu.exafs.hanning_window`` does)."""
+    k = np.asarray(k, float)
+    if dk <= 0:
+        return ((k >= kmin) & (k <= kmax)).astype(float)
     up = 0.5 * (1 - np.cos(np.pi * np.clip((k - (kmin - dk / 2)) / dk, 0, 1)))
     down = 0.5 * (1 + np.cos(np.pi * np.clip((k - (kmax - dk / 2)) / dk, 0, 1)))
     return up * down

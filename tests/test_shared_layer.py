@@ -29,6 +29,22 @@ def test_r_factor_forms_agree_and_window_is_larch_like():
         FitWindow(kmin=5.0, kmax=4.0)
 
 
+def test_a_window_without_sills_is_rectangular_in_both_forms():
+    """dk = 0 (EvAX's default window): the numpy and the torch form give 1 from kmin to kmax and 0 outside, and the
+    R-factor with it is a number (the numpy form used to divide by zero)."""
+    import torch
+    from feffgpu.compare import hanning, r_factor
+    from feffgpu.exafs import hanning_window, k_grid
+    k = k_grid(16.0)
+    w = hanning(k, 3.0, 13.0, 0.0)
+    assert np.isfinite(w).all() and w[(k >= 3.0) & (k <= 13.0)].min() == 1.0 and w[(k < 3.0) | (k > 13.0)].max() == 0.0
+    wt = hanning_window(torch.as_tensor(k), torch.tensor([3.0]), torch.tensor([13.0]), dk=0.0)[0].numpy()
+    assert np.array_equal(w, wt)
+    chi = np.sin(2 * 2.5 * k) * np.exp(-0.01 * k ** 2)
+    assert r_factor(k, chi, chi, kmin=3.0, kmax=13.0, dk=0.0) == 0.0
+    assert 0.0 < r_factor(k, chi, 0.9 * chi, kmin=3.0, kmax=13.0, dk=0.0) < 0.02
+
+
 def test_evax_window_is_the_hanning_window_shifted_by_half_a_sill():
     from feffgpu.exafs import FitWindow, evax_window, k_grid, window_tensor
     k = k_grid(20.0)

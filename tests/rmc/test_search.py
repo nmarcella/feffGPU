@@ -279,6 +279,24 @@ def test_evax_rules_without_gradient_steps_keep_the_limits(one_edge_run, tmp_pat
     assert np.linalg.norm(d - float(z["cell"][0, 0]) * np.round(d / float(z["cell"][0, 0])), axis=-1).max() <= 0.12 + 1e-4
 
 
+@pytest.mark.parametrize("gradient_steps", [0, 10])
+def test_the_wavelet_objective_runs_in_a_search(one_edge_run, tmp_path, gradient_steps):
+    """EvAX's fit space in a search, with S0^2 and the E0 shift held as EvAX holds them, with and without gradient
+    steps. The wavelet residual is computed in single precision and the misfit sums are double: a search with this
+    objective used to stop with a dtype error at its first evaluation."""
+    from feffgpu.rmc import run_search
+    out = tmp_path / f"wavelet_{gradient_steps}"
+    cfg = one_edge_toml(one_edge_run, output=str(out), generations=6, name=f"wavelet_{gradient_steps}.toml",
+                        amplitude='mode = "fixed"\ns02 = 0.9\nde0 = 1.5', search_extra="step = 0.01")
+    text = cfg.read_text().replace("gradient_steps = 10", f"gradient_steps = {gradient_steps}")
+    cfg.write_text(text.replace("  nleg = 3\n", '  nleg = 3\n  objective = "wavelet"\n  wavelet_r0 = 2.5\n'))
+    run_search(cfg, log=None)
+    best = [g["best"] for g in json.loads((out / "rs/history.json").read_text())["generations"]]
+    assert np.isfinite(best).all() and best[-1] < best[0]
+    report = json.loads((out / "rs/report.json").read_text())
+    assert report["settings"]["box_rule"] == ("project" if gradient_steps else "halve")
+
+
 def test_two_edges_weights_adapt_and_the_fit_improves(tmp_path):
     """Two spectra of one sample (the C edge, and a second edge with the W phase file as a stand-in): EvAX's weights adapt and
     sum to one; the misfit of both improves."""
