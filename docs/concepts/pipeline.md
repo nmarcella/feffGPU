@@ -16,7 +16,9 @@ unfrozen f electrons call FEFF's atomic code through the optional library.
 
 **Phase shifts (`xsph.py`, `kernels.py`).** FEFF's energy mesh, the radial Dirac equation per potential and partial
 wave, phase shifts to FEFF's partial-wave limit (or higher, with the patched library for validation), and the dipole
-matrix elements with the core-hole final state.
+matrix elements with the core-hole final state. On a GPU the sequential loops of the radial solver run as compiled
+kernels; with a Triton version they were not released with, the package tests them against the plain code before it
+uses them ([](../feff/limits.md)).
 
 **Path finder (`pathfinder.py`).** All 2-, 3- and 4-leg paths of an absorber within the path cutoff, with FEFF's
 plane-wave importance estimate, the `CRITERIA` filter relative to the shortest single-scattering path, and the merging

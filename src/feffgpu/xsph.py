@@ -27,7 +27,8 @@ NRPTX = 1251
 LTOT = 80                  # dim.h of the rebuilt FEFF; besjn evaluates ltot + 2 orders
 NPI = 6
 MILNE_TEST = 1.0e5
-USE_KERNELS = True            # Triton kernels for the radial recursions on CUDA tensors
+USE_KERNELS = os.environ.get("FEFFGPU_KERNELS", "1").strip().lower() not in ("0", "no", "off", "false")
+# Triton kernels for the radial recursions on CUDA tensors (FEFFGPU_KERNELS=0 switches them off); see kernels_usable
 CDTYPE = torch.complex128
 RDTYPE = torch.float64
 
@@ -738,82 +739,147 @@ def _lane_grid(dr, L, dev):
     return dr
 
 
-def dirac_outward(ec, en, kap, ic3, fl, av1, av2, dv, vm, dr, ri, hx, iflat0, iwkb0, jri0, jlast0, rmt, lmaxp1=LTOT + 2):
-    """Regular solution of the Dirac equation for a batch of lanes (dfovrg with ncycle = 0, irr = -1): power
-    expansion at the origin (solout), Runge-Kutta then Milne predictor-corrector (intout) to iflat, exact flat-
-    potential steps to jlast, then the flat step from ri(jri) to the muffin-tin radius. All indices 0-based.
-    dr (N,) or (L, N); av1, rmt scalars or (L,); jri0 int or (L,). Returns gg, gp (L, N) and pu, qu (L,)."""
-    L, N = dv.shape
-    dev = dv.device
-    kapf = kap.to(RDTYPE)
-    ic3f = ic3.to(RDTYPE)
-    dr = _lane_grid(dr, L, dev)
-    dr1 = dr[:, 0]
-    av1 = torch.as_tensor(av1, dtype=RDTYPE, device=dev)
-    rmt = torch.as_tensor(rmt, dtype=RDTYPE, device=dev)
-    jri0 = torch.as_tensor(jri0, dtype=torch.long, device=dev)
-    if jri0.dim() == 0:
-        jri0 = jri0.expand(L)
-    ccl_s = 2 * ALPINV
-    ccl_i = CL_W + CL_W
-    cz = torch.zeros(L, dtype=CDTYPE, device=dev)
-    # --- values at the first point
-    ap1 = torch.where(kap > 0, -(kapf + fl) / av1, -av1 / (kapf - fl)).to(CDTYPE)
-    ag = [torch.ones(L, dtype=CDTYPE, device=dev), cz.clone(), cz.clone()]
-    ap = [ap1, cz.clone(), cz.clone()]
-    av = [av1, av2, cz]
-    for j in (2, 3):
-        k = j - 1
-        a = fl + kapf + k
-        b = fl - kapf + k
-        eph = a * b + av1 * av1
-        f = (ec + ccl_s) * ap[k - 1] + ap[j - 1]
-        g = ec * ag[k - 1] + ag[j - 1]
-        for i in range(1, k + 1):
-            f = f - av[i] * ap[j - i - 1]
-            g = g - av[i] * ag[j - i - 1]
-        ag[j - 1] = (b * f + av1 * g) / eph
-        ap[j - 1] = (av1 * f - a * g) / eph
-    gg1d, gp1d = cz.clone(), cz.clone()
-    for j in (1, 2, 3):
-        bpow = dr1 ** (fl + j - 1)
-        gg1d = gg1d + bpow * ag[j - 1]
-        gp1d = gp1d + bpow * ap[j - 1]
-    twoz = -av1 * 2.0 * CL_W
-    rat1 = twoz / ccl_s
-    rat2 = rat1 * rat1
-    rat3 = (ccl_s * ccl_s) / twoz
-    il = torch.where(kap > 0, kapf + 1, -kapf)
-    l0 = il - 1
-    ap1f = (fl - il) * rat3 * 1.0
-    ag2 = (3.0 * fl - rat2) / (2.0 * fl + 1.0) * 1.0
-    ap2 = rat3 * ((fl - l0) * ag2 - 1.0) - ap1f
-    ag3 = ((fl + 3.0 * il) * ag2 - 3.0 * l0 * 1.0 + (fl + il + 3.0) / rat3 * ap2) / (fl + 1.0) / 4.0
-    ap3 = (rat3 * (2.0 * l0 * (fl + 2.0 - il) - l0 - rat2) * ag2 - 3.0 * l0 * rat3 * (fl + 2.0 - il) * 1.0
-           + (fl + 3.0 - 2.0 * il - rat2) * ap2) / (fl + 1.0) / 4.0
-    ap1f = ap1f / ccl_s
-    ag2 = ag2 * rat3
-    ap2 = ap2 * rat3 / ccl_s
-    ag3 = ag3 * (rat3 * rat3)
-    ap3 = ap3 * (rat3 * rat3) / ccl_s
-    dfl = dr1 ** fl
-    gg1f = dfl * (1.0 + dr1 * (ag2 + dr1 * ag3))
-    gp1f = dfl * (ap1f + dr1 * (ap2 + dr1 * ap3))
-    use_d = ic3 == 0
-    gg = torch.zeros(L, N, dtype=CDTYPE, device=dev)
-    gp = torch.zeros_like(gg)
-    gg[:, 0] = torch.where(use_d, gg1d, gg1f.to(CDTYPE))
-    gp[:, 0] = torch.where(use_d, gp1d, gp1f.to(CDTYPE))
-    # --- Runge-Kutta for the first NPI points (intout), then Milne to iflat: on the GPU one kernel does both
-    exphx = math.exp(hx / 2)
+_KERNELS = {"checked": False, "usable": False, "note": "not decided yet (decided at the first calculation on a GPU)"}
+
+
+def _kernel_test_problem(dev):
+    """A small made-up set of lanes for the two Milne routines: benign numbers of the size the solver meets, three
+    kernel blocks with a part-filled last one, lanes that stop at different points."""
+    gen = torch.Generator().manual_seed(7)
+
+    def rnd(*shape):
+        return torch.rand(*shape, generator=gen, dtype=RDTYPE)
+
+    L, N, hx = 150, 56, 0.05
+    dr = (1.0e-3 * torch.exp(hx * torch.arange(N, dtype=RDTYPE)))[None].expand(L, N).contiguous()
+    kapf = torch.tensor([-1.0, 1.0, -2.0, 2.0, -3.0, 3.0, -4.0], dtype=RDTYPE).repeat(L // 7 + 1)[:L].contiguous()
+    ic3f = (torch.arange(L) % 2).to(RDTYPE)
+    zeff = 20.0 + 40.0 * rnd(L)
+    av1 = -zeff / CL_W
+    dv = torch.complex(-zeff[:, None] / (dr * CL_W) + 0.3 * rnd(L, N), 0.01 * rnd(L, N))
+    vm = torch.complex(0.05 * rnd(L, N), 0.01 * rnd(L, N))
+    ec = torch.complex(0.5 * rnd(L) / CL_W, 0.01 * rnd(L) / CL_W)
+    iflat0 = 40 + (torch.arange(L) % 7)
+    start = torch.complex(0.5 + rnd(L, 2), 0.2 * rnd(L, 2))
+    outer = torch.complex(0.5 + rnd(L, N), 0.2 * rnd(L, N))
+    seeds = torch.complex(rnd(L, 2, 6) - 0.5, 0.2 * rnd(L, 2, 6))
+    t = dict(dr=dr, kapf=kapf, ic3f=ic3f, av1=av1, dv=dv, vm=vm, ec=ec, iflat0=iflat0, start=start, outer=outer, seeds=seeds)
+    return {k: v.to(dev) for k, v in t.items()}, L, N, hx
+
+
+def kernel_difference(dev="cuda"):
+    """The largest relative difference between the Triton kernels and the torch code on a small made-up problem:
+    (outward, inward). Rounding gives about 1e-15."""
+    from .kernels import milne_outward, milne_inward
+    t, L, N, hx = _kernel_test_problem(dev)
+    consts = _milne_constants(hx, CL_W + CL_W)
+
+    def rel(a, b):
+        return float(((a - b).abs() / b.abs().clamp_min(1e-300))[b.abs() > 0].max())
+
+    def start():
+        gg = torch.zeros(L, N, dtype=CDTYPE, device=t["dv"].device)
+        gp = torch.zeros_like(gg)
+        gg[:, 0], gp[:, 0] = t["start"][:, 0], t["start"][:, 1]
+        return gg, gp
+
+    k = milne_outward(*start(), t["dv"], t["vm"], t["dr"], t["ec"], t["kapf"], t["ic3f"], t["av1"].contiguous(), t["iflat0"], hx, consts)
+    p = _milne_outward_plain(*start(), t["dv"], t["vm"], t["dr"], t["ec"], t["kapf"], t["ic3f"], t["av1"], t["iflat0"], hx, consts)
+    d_out = max(rel(k[0], p[0]), rel(k[1], p[1]))
+
+    def outer():
+        keep = torch.arange(N, device=t["dv"].device)[None] >= t["iflat0"][:, None]
+        return torch.where(keep, t["outer"], torch.zeros_like(t["outer"])), torch.where(keep, t["outer"].conj() * 0.7, torch.zeros_like(t["outer"]))
+
+    D, P = t["seeds"][:, 0], t["seeds"][:, 1]
+    k = milne_inward(*outer(), D.contiguous(), P.contiguous(), t["dv"], t["vm"], t["dr"], t["ec"], t["kapf"], t["ic3f"], t["iflat0"], hx, consts)
+    p = _milne_inward_plain(*outer(), [D[:, j] for j in range(6)], [P[:, j] for j in range(6)], t["dv"], t["vm"], t["dr"], t["ec"],
+                            t["kapf"], t["ic3f"], t["iflat0"], hx, consts)
+    d_in = max(rel(k[0], p[0]), rel(k[1], p[1]))
+    return d_out, d_in
+
+
+class KernelCheckError(RuntimeError):
+    """The compiled GPU kernels of the radial solver cannot be trusted in this environment."""
+
+
+def kernels_usable(t):
+    """Whether the Triton kernels are used for the tensor t. False on a CPU and when the kernels were switched off
+    on purpose (FEFFGPU_KERNELS=0). On a CUDA device the kernels are used. A kernel is compiled by the installed
+    Triton, and a compiler can change what a kernel computes (Triton 3.8 did, against 3.1). So: with a Triton
+    version that the kernels were tested with before the release (`kernels.TESTED_TRITON`) nothing is checked; with
+    any other version the kernels are first compared with the torch code on a small made-up problem, once per
+    process. There is no automatic change to the slower torch code: if Triton is missing, or the kernels do not
+    reproduce the torch code, or the comparison cannot run, the calculation stops with a KernelCheckError that says
+    what to do."""
+    if not (t.is_cuda and USE_KERNELS):
+        return False
+    if not _KERNELS["checked"]:
+        _check_kernels(t.device)
+    if not _KERNELS["usable"]:
+        raise KernelCheckError(_KERNELS["note"])
+    return True
+
+
+_KERNEL_HELP = ("feffgpu does not continue with other code on its own. Report this with the output of `feffgpu doctor`. To run now with the "
+                "plain PyTorch code of the radial solver (same results, potentials and phase shifts take longer), set the environment "
+                "variable FEFFGPU_KERNELS=0.")
+
+
+def _check_kernels(dev, test=False):
+    """Decide once per process whether the kernels are used: by the Triton version if it is a tested one, else (or
+    with test=True) by comparing the kernels with the torch code now."""
+    _KERNELS["checked"] = True
+    try:
+        from .kernels import HAVE_TRITON, TESTED_TRITON
+        if not HAVE_TRITON:
+            _KERNELS.update(usable=False, note="the GPU kernels of the radial solver need Triton, which is not installed (it comes with "
+                            "the CUDA builds of PyTorch on Linux: pip install triton). " + _KERNEL_HELP)
+            return
+        import triton
+        version = triton.__version__
+        tested = version in TESTED_TRITON
+        if tested and not test:
+            _KERNELS.update(usable=True, note=f"in use (Triton {version}, a version they were tested with)")
+            return
+        d_out, d_in = kernel_difference(dev)
+        if max(d_out, d_in) < 1.0e-9:
+            which = "a version they were tested with" if tested else "not a version they were released with, so they were tested now"
+            _KERNELS.update(usable=True, note=f"in use (Triton {version}, {which}); they reproduce the plain code to {max(d_out, d_in):.0e}")
+            return
+        note = (f"the GPU kernels of the radial solver do not reproduce the plain code with Triton {version}: on the built-in test "
+                f"they differ by {d_out:.1e} (outward) and {d_in:.1e} (inward), where rounding gives about 1e-14. The kernels were "
+                f"released with Triton {', '.join(TESTED_TRITON)}. ")
+    except Exception as err:
+        note = f"the built-in test of the GPU kernels of the radial solver could not run ({err!r}). "[:400]
+    _KERNELS.update(usable=False, note=note + _KERNEL_HELP)
+
+
+def kernel_status(dev=None, test=False):
+    """dict(usable, note) for `feffgpu doctor`. With a CUDA device the decision is made if it has not been made yet;
+    test=True runs the comparison of the kernels with the torch code now, whatever the Triton version. Never raises."""
+    if not USE_KERNELS:
+        return {"usable": False, "note": "switched off on purpose (FEFFGPU_KERNELS=0): the plain code is used"}
+    if dev is not None and (test or not _KERNELS["checked"]):
+        _check_kernels(torch.device(dev), test=test)
+    return {"usable": _KERNELS["usable"], "note": _KERNELS["note"]}
+
+
+def _milne_constants(hx, ccl):
+    """The constants of the Runge-Kutta start and of the Milne predictor-corrector (intout.f, solin.f); FEFF writes
+    3.3, 4.2 and 7.8 as single-precision numbers."""
     a1, a2, a3 = hx * f32(3.3), -(hx * f32(4.2)), hx * f32(7.8)
     a4, a5, a6 = hx * 14.0 / 45.0, hx * 64.0 / 45.0, hx * 24.0 / 45.0
-    if dv.is_cuda and USE_KERNELS:
-        from .kernels import milne_outward, HAVE_TRITON
-        if HAVE_TRITON:
-            consts = dict(ccl=ccl_i, a1=a1, a2=a2, a3=a3, a4=a4, a5=a5, a6=a6, test=MILNE_TEST)
-            gg, gp = milne_outward(gg, gp, dv, vm, dr.contiguous(), ec, kapf, ic3f, av1.expand(L).contiguous(), iflat0, hx, consts)
-            return _flat_steps_out(gg, gp, ec, en, kap, ic3, ic3f, dv, vm, dr, ri, hx, iflat0, iwkb0, jri0, jlast0, rmt, lmaxp1, L, N, dev, ccl_s)
+    return dict(ccl=ccl, a1=a1, a2=a2, a3=a3, a4=a4, a5=a5, a6=a6, test=MILNE_TEST)
+
+
+def _milne_outward_plain(gg, gp, dv, vm, dr, ec, kapf, ic3f, av1, iflat0, hx, consts):
+    """The Runge-Kutta start and the Milne predictor-corrector of the regular solution (intout.f) in torch: fills
+    gg, gp (L, N; point 0 set) up to iflat0 of each lane. `kernels.milne_outward` does the same on the GPU, one
+    thread per lane, operation by operation."""
+    ccl_i, a1, a2, a3, a4, a5, a6 = (consts[k] for k in ("ccl", "a1", "a2", "a3", "a4", "a5", "a6"))
+    exphx = math.exp(hx / 2)
+    cz = torch.zeros(gg.shape[0], dtype=CDTYPE, device=gg.device)
 
     def fg(i):
         f = (ec - dv[:, i]) * dr[:, i]
@@ -889,6 +955,82 @@ def dirac_outward(ec, en, kap, ic3, fl, av1, av2, dv, vm, dr, ri, hx, iflat0, iw
         gp[:, i + 1] = torch.where(valid, gpn, cz)
         D.append(torch.where(valid, dg6, cz))
         P.append(torch.where(valid, dp6, cz))
+    return gg, gp
+
+
+def dirac_outward(ec, en, kap, ic3, fl, av1, av2, dv, vm, dr, ri, hx, iflat0, iwkb0, jri0, jlast0, rmt, lmaxp1=LTOT + 2):
+    """Regular solution of the Dirac equation for a batch of lanes (dfovrg with ncycle = 0, irr = -1): power
+    expansion at the origin (solout), Runge-Kutta then Milne predictor-corrector (intout) to iflat, exact flat-
+    potential steps to jlast, then the flat step from ri(jri) to the muffin-tin radius. All indices 0-based.
+    dr (N,) or (L, N); av1, rmt scalars or (L,); jri0 int or (L,). Returns gg, gp (L, N) and pu, qu (L,)."""
+    L, N = dv.shape
+    dev = dv.device
+    kapf = kap.to(RDTYPE)
+    ic3f = ic3.to(RDTYPE)
+    dr = _lane_grid(dr, L, dev)
+    dr1 = dr[:, 0]
+    av1 = torch.as_tensor(av1, dtype=RDTYPE, device=dev)
+    rmt = torch.as_tensor(rmt, dtype=RDTYPE, device=dev)
+    jri0 = torch.as_tensor(jri0, dtype=torch.long, device=dev)
+    if jri0.dim() == 0:
+        jri0 = jri0.expand(L)
+    ccl_s = 2 * ALPINV
+    ccl_i = CL_W + CL_W
+    cz = torch.zeros(L, dtype=CDTYPE, device=dev)
+    # --- values at the first point
+    ap1 = torch.where(kap > 0, -(kapf + fl) / av1, -av1 / (kapf - fl)).to(CDTYPE)
+    ag = [torch.ones(L, dtype=CDTYPE, device=dev), cz.clone(), cz.clone()]
+    ap = [ap1, cz.clone(), cz.clone()]
+    av = [av1, av2, cz]
+    for j in (2, 3):
+        k = j - 1
+        a = fl + kapf + k
+        b = fl - kapf + k
+        eph = a * b + av1 * av1
+        f = (ec + ccl_s) * ap[k - 1] + ap[j - 1]
+        g = ec * ag[k - 1] + ag[j - 1]
+        for i in range(1, k + 1):
+            f = f - av[i] * ap[j - i - 1]
+            g = g - av[i] * ag[j - i - 1]
+        ag[j - 1] = (b * f + av1 * g) / eph
+        ap[j - 1] = (av1 * f - a * g) / eph
+    gg1d, gp1d = cz.clone(), cz.clone()
+    for j in (1, 2, 3):
+        bpow = dr1 ** (fl + j - 1)
+        gg1d = gg1d + bpow * ag[j - 1]
+        gp1d = gp1d + bpow * ap[j - 1]
+    twoz = -av1 * 2.0 * CL_W
+    rat1 = twoz / ccl_s
+    rat2 = rat1 * rat1
+    rat3 = (ccl_s * ccl_s) / twoz
+    il = torch.where(kap > 0, kapf + 1, -kapf)
+    l0 = il - 1
+    ap1f = (fl - il) * rat3 * 1.0
+    ag2 = (3.0 * fl - rat2) / (2.0 * fl + 1.0) * 1.0
+    ap2 = rat3 * ((fl - l0) * ag2 - 1.0) - ap1f
+    ag3 = ((fl + 3.0 * il) * ag2 - 3.0 * l0 * 1.0 + (fl + il + 3.0) / rat3 * ap2) / (fl + 1.0) / 4.0
+    ap3 = (rat3 * (2.0 * l0 * (fl + 2.0 - il) - l0 - rat2) * ag2 - 3.0 * l0 * rat3 * (fl + 2.0 - il) * 1.0
+           + (fl + 3.0 - 2.0 * il - rat2) * ap2) / (fl + 1.0) / 4.0
+    ap1f = ap1f / ccl_s
+    ag2 = ag2 * rat3
+    ap2 = ap2 * rat3 / ccl_s
+    ag3 = ag3 * (rat3 * rat3)
+    ap3 = ap3 * (rat3 * rat3) / ccl_s
+    dfl = dr1 ** fl
+    gg1f = dfl * (1.0 + dr1 * (ag2 + dr1 * ag3))
+    gp1f = dfl * (ap1f + dr1 * (ap2 + dr1 * ap3))
+    use_d = ic3 == 0
+    gg = torch.zeros(L, N, dtype=CDTYPE, device=dev)
+    gp = torch.zeros_like(gg)
+    gg[:, 0] = torch.where(use_d, gg1d, gg1f.to(CDTYPE))
+    gp[:, 0] = torch.where(use_d, gp1d, gp1f.to(CDTYPE))
+    # --- Runge-Kutta for the first NPI points (intout), then Milne to iflat: on the GPU one kernel does both
+    consts = _milne_constants(hx, ccl_i)
+    if kernels_usable(dv):
+        from .kernels import milne_outward
+        gg, gp = milne_outward(gg, gp, dv, vm, dr.contiguous(), ec, kapf, ic3f, av1.expand(L).contiguous(), iflat0, hx, consts)
+    else:
+        gg, gp = _milne_outward_plain(gg, gp, dv, vm, dr, ec, kapf, ic3f, av1, iflat0, hx, consts)
     return _flat_steps_out(gg, gp, ec, en, kap, ic3, ic3f, dv, vm, dr, ri, hx, iflat0, iwkb0, jri0, jlast0, rmt, lmaxp1, L, N, dev, ccl_s)
 
 
@@ -1398,6 +1540,53 @@ def besjh(x, lbmax):
     return jl, hl
 
 
+def _milne_inward_plain(gg, gp, D, P, dv, vm, dr, ec, kapf, ic3f, iflat0, hx, consts):
+    """The Milne predictor-corrector of the irregular solution from iflat0 of each lane to the origin (solin.f) in
+    torch. gg, gp (L, N) are set from iflat0 outward; D, P: the six derivative seeds, lists of (L,).
+    `kernels.milne_inward` does the same on the GPU."""
+    ccl, a1, a2, a3, a4, a5, a6 = (consts[k] for k in ("ccl", "a1", "a2", "a3", "a4", "a5", "a6"))
+
+    def fg(i):
+        f = (ec - dv[:, i]) * dr[:, i]
+        return f, f + ccl * dr[:, i]
+
+    for i in range(int(iflat0.max()), 0, -1):                   # 0-based i: computes point i - 1
+        valid = i <= iflat0
+        acp = gg[:, i + 5] + a1 * (D[5] + D[1]) + a2 * (D[4] + D[2]) + a3 * D[3]
+        bcp = gp[:, i + 5] + a1 * (P[5] + P[1]) + a2 * (P[4] + P[2]) + a3 * P[3]
+        ac = gg[:, i + 3] + a4 * D[2] + a5 * (D[5] + D[3]) + a6 * D[4]
+        bc = gp[:, i + 3] + a4 * P[2] + a5 * (P[5] + P[3]) + a6 * P[4]
+        Dn, Pn = D[1:], P[1:]
+        f, g = fg(i - 1)
+        c3 = ic3f * vm[:, i - 1] / (g * g)
+        fc = f - c3
+        dg6 = -(g * bcp - kapf * acp)
+        dp6 = -(kapf * bcp - fc * acp)
+        ggn = ac + a4 * dg6
+        gpn = bc + a4 * dp6
+        nit = 0
+        while True:
+            fail = ((MILNE_TEST * (ggn - acp)).abs() > ggn.abs()) | ((MILNE_TEST * (gpn - bcp)).abs() > gpn.abs())
+            fail = fail & valid
+            if nit >= 40 or not bool(fail.any()):
+                break
+            acp = torch.where(fail, ggn, acp)
+            bcp = torch.where(fail, gpn, bcp)
+            nit += 1
+            dg6n = -(g * bcp - kapf * acp)
+            dp6n = -(kapf * bcp - fc * acp)
+            dg6 = torch.where(fail, dg6n, dg6)
+            dp6 = torch.where(fail, dp6n, dp6)
+            ggn = torch.where(fail, ac + a4 * dg6n, ggn)
+            gpn = torch.where(fail, bc + a4 * dp6n, gpn)
+        gg[:, i - 1] = torch.where(valid, ggn, gg[:, i - 1])
+        gp[:, i - 1] = torch.where(valid, gpn, gp[:, i - 1])
+        # lanes that have not started their inward Milne yet (i > iflat0) keep their derivative seeds
+        D = [torch.where(valid, Dn[k], D[k]) for k in range(5)] + [torch.where(valid, dg6, D[5])]
+        P = [torch.where(valid, Pn[k], P[k]) for k in range(5)] + [torch.where(valid, dp6, P[5])]
+    return gg, gp
+
+
 def dirac_inward(ec, en, kap, ic3, dv, vm, dr, hx, iflat0, iwkb0, jri0, imax0, lmaxp1=LTOT + 2):
     """Irregular solution (dfovrg with irr = 1): outgoing Hankel solution from jri to imax, flat-potential steps
     inward to iflat, Milne predictor-corrector inward to the origin (solin.f). 0-based indices. Returns gg, gp."""
@@ -1490,48 +1679,11 @@ def dirac_inward(ec, en, kap, ic3, dv, vm, dr, hx, iflat0, iwkb0, jri0, imax0, l
             if bool(sel.any()):
                 D[jj - 1] = torch.where(sel, dgi, D[jj - 1])
                 P[jj - 1] = torch.where(sel, dpi, P[jj - 1])
-    a1, a2, a3 = hx * f32(3.3), -(hx * f32(4.2)), hx * f32(7.8)
-    a4, a5, a6 = hx * 14.0 / 45.0, hx * 64.0 / 45.0, hx * 24.0 / 45.0
-    if dv.is_cuda and USE_KERNELS:
-        from .kernels import milne_inward, HAVE_TRITON
-        if HAVE_TRITON:
-            consts = dict(ccl=ccl, a1=a1, a2=a2, a3=a3, a4=a4, a5=a5, a6=a6, test=MILNE_TEST)
-            return milne_inward(gg, gp, torch.stack(D, 1), torch.stack(P, 1), dv, vm, dr.contiguous(), ec, kapf, ic3f, iflat0, hx, consts)
-    for i in range(int(iflat0.max()), 0, -1):                   # 0-based i: computes point i - 1
-        valid = i <= iflat0
-        acp = gg[:, i + 5] + a1 * (D[5] + D[1]) + a2 * (D[4] + D[2]) + a3 * D[3]
-        bcp = gp[:, i + 5] + a1 * (P[5] + P[1]) + a2 * (P[4] + P[2]) + a3 * P[3]
-        ac = gg[:, i + 3] + a4 * D[2] + a5 * (D[5] + D[3]) + a6 * D[4]
-        bc = gp[:, i + 3] + a4 * P[2] + a5 * (P[5] + P[3]) + a6 * P[4]
-        Dn, Pn = D[1:], P[1:]
-        f, g = fg(i - 1)
-        c3 = ic3f * vm[:, i - 1] / (g * g)
-        fc = f - c3
-        dg6 = -(g * bcp - kapf * acp)
-        dp6 = -(kapf * bcp - fc * acp)
-        ggn = ac + a4 * dg6
-        gpn = bc + a4 * dp6
-        nit = 0
-        while True:
-            fail = ((MILNE_TEST * (ggn - acp)).abs() > ggn.abs()) | ((MILNE_TEST * (gpn - bcp)).abs() > gpn.abs())
-            fail = fail & valid
-            if nit >= 40 or not bool(fail.any()):
-                break
-            acp = torch.where(fail, ggn, acp)
-            bcp = torch.where(fail, gpn, bcp)
-            nit += 1
-            dg6n = -(g * bcp - kapf * acp)
-            dp6n = -(kapf * bcp - fc * acp)
-            dg6 = torch.where(fail, dg6n, dg6)
-            dp6 = torch.where(fail, dp6n, dp6)
-            ggn = torch.where(fail, ac + a4 * dg6n, ggn)
-            gpn = torch.where(fail, bc + a4 * dp6n, gpn)
-        gg[:, i - 1] = torch.where(valid, ggn, gg[:, i - 1])
-        gp[:, i - 1] = torch.where(valid, gpn, gp[:, i - 1])
-        # lanes that have not started their inward Milne yet (i > iflat0) keep their derivative seeds
-        D = [torch.where(valid, Dn[k], D[k]) for k in range(5)] + [torch.where(valid, dg6, D[5])]
-        P = [torch.where(valid, Pn[k], P[k]) for k in range(5)] + [torch.where(valid, dp6, P[5])]
-    return gg, gp
+    consts = _milne_constants(hx, ccl)
+    if kernels_usable(dv):
+        from .kernels import milne_inward
+        return milne_inward(gg, gp, torch.stack(D, 1), torch.stack(P, 1), dv, vm, dr.contiguous(), ec, kapf, ic3f, iflat0, hx, consts)
+    return _milne_inward_plain(gg, gp, D, P, dv, vm, dr, ec, kapf, ic3f, iflat0, hx, consts)
 
 
 def _solve_irregular(self, en, dv, vmb, kap, ic3, jlast, ie_of):

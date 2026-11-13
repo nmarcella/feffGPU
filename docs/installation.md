@@ -55,7 +55,8 @@ The table is needed to compute potentials and phase files. To use a table that y
 feffgpu doctor
 ```
 
-prints the versions, the GPUs with their free memory, where the free-atom table is, and the optional parts. It
+prints the versions, the GPUs with their free memory, the result of a test of the compiled GPU kernels against the
+plain code in this environment ([](feff/limits.md)), where the free-atom table is, and the optional parts. It
 ends with `OK` or with a list of problems and exits with code 1 if something required is missing. `feffgpu doctor
 --json` gives the same as JSON.
 
@@ -81,6 +82,7 @@ a patch that raises FEFF's partial-wave limit. Point `FEFF_HOME` (a directory wi
 | `FEFF_LMAX` | force a partial-wave limit instead of FEFF's rule |
 | `CUDA_VISIBLE_DEVICES` | the GPUs that PyTorch, and so `feffgpu`, can see |
 | `PYTORCH_CUDA_ALLOC_CONF` | set to `expandable_segments:True` for large runs to reduce memory fragmentation |
+| `FEFFGPU_KERNELS` | set to `0` to use the plain PyTorch code of the radial solver instead of the compiled GPU kernels (same results, slower); never chosen automatically |
 | `FEFFGPU_DOCS` | folder of the documentation sources, for the documentation tools of the MCP server |
 
 ## Troubleshooting
@@ -110,6 +112,16 @@ a patch that raises FEFF's partial-wave limit. Point `FEFF_HOME` (a directory wi
   linear-algebra call of a process, batched linear solves on the CPU fail. `feffgpu` then solves one matrix at a time
   and continues (the first message may still be printed). To avoid it in your own code, set the number of threads
   with the environment variable `OMP_NUM_THREADS` before Python starts and do not call `torch.set_num_threads()`.
+
+`the GPU kernels of the radial solver do not reproduce the plain code`
+: The installed Triton, the kernel compiler that PyTorch installs, is not one of the versions the kernels were
+  released with, and the kernels failed the built-in test with it ([](feff/limits.md)). The calculation stops instead
+  of continuing with other code. Please report it with the output of `feffgpu doctor`. To run in the meantime, set `FEFFGPU_KERNELS=0`: the
+  plain PyTorch code gives the same results and takes longer for potentials and phase shifts.
+
+`the GPU kernels of the radial solver need Triton, which is not installed`
+: Triton comes with the CUDA builds of PyTorch on Linux. Install it (`pip install triton`), or set
+  `FEFFGPU_KERNELS=0` to use the plain PyTorch code.
 
 `the periodic cell ... must exceed twice the path cutoff`
 : Paths are found with the minimum-image convention, which needs a cell at least twice as wide as the path cutoff.

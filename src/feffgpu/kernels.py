@@ -13,6 +13,12 @@ try:
 except Exception:                                            # pragma: no cover
     HAVE_TRITON = False
 
+# The Triton versions with which these kernels were compared with the torch code before a release
+# (tests/test_kernels.py, feffgpu.xsph.kernel_difference: agreement to rounding). With one of them the kernels are used
+# as they are. With any other version the comparison runs once per process before the kernels are used
+# (feffgpu.xsph.kernels_usable). Add a version here only after tests/test_kernels.py passed with it on a GPU.
+TESTED_TRITON = ("3.1.0", "3.8.0")
+
 if HAVE_TRITON:
 
     @triton.jit
@@ -91,6 +97,10 @@ if HAVE_TRITON:
         tr, ti = _cmul(fr - cr, fi - ci, g0r, g0i)
         q5r = hx * (kp * p0r - tr)
         q5i = hx * (kp * p0i - ti)
+        # d0..d5: the derivatives (times hx) at points 0..5; d5 is also the newest one while the loop runs. Each of
+        # d1..d4 is written once, at its own step, with tl.where. They must not be filled by shifting variables that
+        # start as the same value (d0 = d1, d1 = d2, ...): Triton 3.8 compiles that pattern wrongly (the shifted
+        # variables keep their start value), where Triton 3.1 compiled it as written.
         d0r = d5r; d0i = d5i; q0r = q5r; q0i = q5i
         d1r = d5r; d1i = d5i; q1r = q5r; q1i = q5i
         d2r = d5r; d2i = d5i; q2r = q5r; q2i = q5i
@@ -173,11 +183,14 @@ if HAVE_TRITON:
             tr, ti = _cmul(fcr, fci, ngr, ngi)
             nq_r = hx * (kp * npr - tr)
             nq_i = hx * (kp * npi - ti)
-            d0r = d1r; d0i = d1i; q0r = q1r; q0i = q1i
-            d1r = d2r; d1i = d2i; q1r = q2r; q1i = q2i
-            d2r = d3r; d2i = d3i; q2r = q3r; q2i = q3i
-            d3r = d4r; d3i = d4i; q3r = q4r; q3i = q4i
-            d4r = d5r; d4i = d5i; q4r = q5r; q4i = q5i
+            d1r = tl.where(i == 0, nd_r, d1r); d1i = tl.where(i == 0, nd_i, d1i)
+            q1r = tl.where(i == 0, nq_r, q1r); q1i = tl.where(i == 0, nq_i, q1i)
+            d2r = tl.where(i == 1, nd_r, d2r); d2i = tl.where(i == 1, nd_i, d2i)
+            q2r = tl.where(i == 1, nq_r, q2r); q2i = tl.where(i == 1, nq_i, q2i)
+            d3r = tl.where(i == 2, nd_r, d3r); d3i = tl.where(i == 2, nd_i, d3i)
+            q3r = tl.where(i == 2, nq_r, q3r); q3i = tl.where(i == 2, nq_i, q3i)
+            d4r = tl.where(i == 3, nd_r, d4r); d4i = tl.where(i == 3, nd_i, d4i)
+            q4r = tl.where(i == 3, nq_r, q4r); q4i = tl.where(i == 3, nq_i, q4i)
             d5r = nd_r; d5i = nd_i; q5r = nq_r; q5i = nq_i
             cgr = ngr; cgi = ngi; cpr = npr; cpi = npi
         # after the loop d0..d5 hold the six derivatives (times hx) of points 0..5

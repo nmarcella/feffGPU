@@ -55,6 +55,14 @@ shared machine. Do not start long fits or benchmarks as tests.
 10. Plain English, American spelling, terms defined at first use, NumPy-style docstrings with units.
 11. **Never call `torch.set_num_threads()`** in the package or in a test. In some PyTorch builds it breaks batched
     linear solves on the CPU for the rest of the process (`tests/test_fms_solve.py` shows it in a fresh process).
+12. **A compiled kernel is only as right as its compiler.** `src/feffgpu/kernels.py` repeats the plain code of
+    `xsph.py` operation by operation, and `feffgpu.xsph.kernel_difference` must stay at rounding (about 1e-14).
+    `kernels.TESTED_TRITON` lists the Triton versions for which that was tested; with any other version the package
+    runs the test itself before it uses the kernels (`kernels_usable`). Add a version to the list only after
+    `tests/test_kernels.py` passed with it on a GPU. Do not add an automatic change to slower code: a failed test
+    stops the calculation. In a kernel, never fill a history by shifting variables that start as the same value
+    (`d0 = d1; d1 = d2; ...` after `d0 = d1 = d2 = x`): Triton 3.8 compiles that wrongly. Change the plain code and
+    the kernel together.
 
 ## Map of the package
 

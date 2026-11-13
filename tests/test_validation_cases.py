@@ -1,7 +1,7 @@
 """Regression cases from the random-environment validation (tools/validate_random.py): each
 directory under data/validation holds a feff.inp with FEFF's own chi.dat, pot.pad, phase.pad and paths.dat.
 The whole GPU chain runs from feff.inp and must match chi.dat in the analysis window (R-space, k 3 to 23, R 1 to the
-path cutoff) to 2e-5, with the same degeneracy-weighted path counts. The cases cover what the first validation
+path cutoff) to 2e-5, with the same degeneracy-weighted path counts and the same Fermi level to 2e-6 hartree. The cases cover what the first validation
 round found wrong and fixed: symmetry-degenerate paths on an ideal lattice, ground-state exchange (the matrix
 elements use the EXCHANGE card's fourth value), an ionised absorber (two free-atom passes), and an M5 edge
 (rotation matrices to |m| = 3 and FEFF's truncated lambda set)."""
@@ -51,6 +51,9 @@ def test_validation_case(case):
     deg = {nleg: float(v[2].sum()) for nleg, v in out["kept"].items() if v[0].shape[0]}
     ref = _feff_degeneracies(case / "paths.dat")
     assert {n: round(d) for n, d in deg.items()} == {n: round(d) for n, d in ref.items()}, (deg, ref)
+    # the Fermi level of the self-consistent potentials against FEFF's own pot.pad (2e-8 to 2e-7 hartree in these cases)
+    from feffgpu.pad import read_pot_pad
+    assert abs(out["pot"].xmu - read_pot_pad(case / "pot.pad").xmu) < 2e-6, out["pot"].xmu - read_pot_pad(case / "pot.pad").xmu
 
 
 @pytest.mark.gpu

@@ -296,6 +296,11 @@ def main(argv=None):
     except UserError as err:
         print(f"rmc-exafs {args.command}: {err}", file=sys.stderr)
         return 2
+    except RuntimeError as err:
+        if type(err).__name__ != "KernelCheckError":         # the GPU kernels failed their check: one message, no traceback
+            raise
+        print(f"rmc-exafs {args.command}: {err}", file=sys.stderr)
+        return 2
     except (ValueError, FileNotFoundError, KeyError) as err:
         from pydantic import ValidationError
         if isinstance(err, ValidationError):

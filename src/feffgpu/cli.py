@@ -49,6 +49,10 @@ def _run_guarded(function, *args, **kwargs):
         _fail(f"{err}. feffgpu calculates EXAFS only; see the documentation page 'Limits'.")
     except FileNotFoundError as err:
         _fail(str(err))
+    except RuntimeError as err:
+        if type(err).__name__ != "KernelCheckError":         # the GPU kernels failed their check: one message, no traceback
+            raise
+        _fail(str(err))
 
 
 def main(argv=None):
@@ -196,6 +200,11 @@ def environment_report():
             rep["gpus"].append({"index": i, "name": torch.cuda.get_device_name(i), "memory_total_GB": round(total / 2 ** 30, 2),
                                 "memory_free_GB": round(free / 2 ** 30, 2)})
     rep["cuda_visible_devices"] = os.environ.get("CUDA_VISIBLE_DEVICES")
+    try:                                                      # the GPU kernels of the radial solver, checked against the torch code
+        from .xsph import kernel_status
+        rep["gpu_kernels"] = kernel_status("cuda" if rep["cuda_available"] else None, test=True)      # doctor always runs the test
+    except Exception as err:
+        rep["gpu_kernels"] = {"usable": False, "note": f"could not be checked ({err!r})"[:200]}
     rep["atoms_table"] = {"directory": table_dir(), **table_status()}
     try:
         from .potph_lib import find_library
@@ -215,6 +224,12 @@ def environment_report():
     problems = []
     if not rep["cuda_available"]:
         problems.append("no usable NVIDIA GPU: feffgpu runs on the CPU only for small inputs and slowly")
+    if rep["cuda_available"] and not rep["gpu_kernels"]["usable"]:
+        if rep["gpu_kernels"]["note"].startswith("switched off on purpose"):
+            rep["notes"] = ["the GPU kernels of the radial solver are switched off (FEFFGPU_KERNELS=0): results are the same, potentials "
+                            "and phase shifts take longer"]
+        else:
+            problems.append(rep["gpu_kernels"]["note"])
     if not rep["atoms_table"]["complete"]:
         problems.append("the free-atom table is missing or incomplete (it ships with the package; check FEFFGPU_ATOMS if it is set)")
     for mod in ("numpy", "scipy", "ase", "h5py", "pydantic", "matplotlib"):
@@ -240,6 +255,8 @@ def doctor_main(argv=None):
                 print(f"  GPU {g['index']}: {g['name']}, {g['memory_free_GB']} of {g['memory_total_GB']} GB free")
         else:
             print("  no usable NVIDIA GPU")
+        if rep["gpus"]:
+            print("  GPU kernels of the radial solver: " + rep["gpu_kernels"]["note"])
         t = rep["atoms_table"]
         print(f"  free-atom table: {t['files']} element files in {t['directory']}" + ("" if t["complete"] else "  <- incomplete"))
         lib = rep["feff_library"]
@@ -248,6 +265,8 @@ def doctor_main(argv=None):
         missing = [f"{k}: {v}" for k, v in rep["packages"].items() if v is None or str(v).startswith("not installed")]
         if missing:
             print("  not installed: " + "; ".join(m.replace(": None", " (required)") for m in missing))
+        for note in rep.get("notes", []):
+            print("  note: " + note)
         print("OK" if not rep["problems"] else "PROBLEMS:\n  " + "\n  ".join(rep["problems"]))
     return 1 if rep["problems"] else 0
 
