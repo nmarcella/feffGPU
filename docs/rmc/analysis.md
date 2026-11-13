@@ -1,7 +1,10 @@
 # Analysis of a run
 
-The analysis commands read the files of a finished run ([](outputs.md)). `RUN` is a run's output directory (all its
-samples; choose one with `--sample LABEL`) or one sample's subdirectory. Every command accepts `--json`. The generic
+The analysis commands read the files of a finished run ([](outputs.md)), of the gradient refinement or of the
+population search. `RUN` is a run's output directory (all its samples; choose one with `--sample LABEL`) or one
+sample's subdirectory. A refinement holds one structure (its copies are the cells of one state), so the spread over
+states that the commands report is then that of a single state; give several refinements with other seeds or starts
+to `rmc-exafs shells` for the spread between runs. Every command accepts `--json`. The generic
 tools behind them are in `feffgpu.analysis` and work on any configurations (frames of a trajectory too).
 
 ## Shell numbers: `rmc-exafs shells`

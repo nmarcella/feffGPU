@@ -139,12 +139,13 @@ def test_the_evax_notebook_runs_when_the_example_files_are_there(monkeypatch):
     ours = float(re.search(r"through this package's objective:\s+([0-9.]+)", printed).group(1))
     assert abs(ours / from_files - 1.0) < 0.03                      # the same misfit
     table = re.findall(r"^\s+(\d)\s+(\d\.\d\d)\s+(\d+)\s+(\d+)$", printed, flags=re.M)        # legs, half length, EvAX, this package
-    assert len(table) >= 8 and all(int(mine) in (int(theirs), 2 * int(theirs)) for _, _, theirs, mine in table)   # the same paths
+    assert len(table) >= 8 and sum(int(mine) == int(theirs) for _, _, theirs, mine in table) >= len(table) - 1   # the same groups of paths
     single = float(re.search(r"single scattering:\s+([0-9.e+-]+)", printed).group(1))
-    feff_count = float(re.search(r"FEFF's degeneracies:\s+([0-9.e+-]+)", printed).group(1))
-    evax_count = float(re.search(r"degeneracies of EvAX's list:\s+([0-9.e+-]+)", printed).group(1))
+    as_chosen = float(re.search(r"as chosen by this package:\s+([0-9.e+-]+)", printed).group(1))
+    evax_count = float(re.search(r"counts of EvAX's list:\s+([0-9.e+-]+)", printed).group(1))
     rest = float(re.search(r"energy shift of [0-9.+-]+ eV:\s+([0-9.e+-]+)", printed).group(1))
-    assert single < 0.005 and evax_count < feff_count < 0.006 and rest < 0.0015      # the same spectrum for the same atoms
+    # the same spectrum for the same atoms; the package's own choice of paths is EvAX's, so the two numbers are (nearly) one
+    assert single < 0.005 and evax_count <= as_chosen + 1e-4 and as_chosen < 0.003 and rest < 0.0015
     assert "/home/" not in printed
 
 

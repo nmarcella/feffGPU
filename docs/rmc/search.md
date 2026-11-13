@@ -62,7 +62,9 @@ parent's path lists and is evaluated from its own atoms.
   `Maximal_step_length`, `Move_type move_all`).
 - If `gradient_steps > 0`: that many FIRE steps on the gradient of the misfit, with the springs of the closest
   distances and the displacement limit applied as a projection after every step. During these steps the multiple
-  scattering of the state before the move is held (its gradient is that of single scattering).
+  scattering of the state before the move is held (its gradient is that of single scattering). Where multiple
+  scattering is strong (metals, linear chains of atoms) the steps then stop improving the fit; use the gradient
+  refinement there ([](refinement.md)).
 - The displacement limit: with gradient steps, a projection; without them (`box_rule = "auto"`), EvAX's rule: a state
   whose move takes an atom outside has its random step halved, at most 100 times, and is refused if that does not
   help.

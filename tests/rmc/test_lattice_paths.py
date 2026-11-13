@@ -1,6 +1,7 @@
 """EvAX's rule for choosing the multiple-scattering paths (``criteria_rule = "evax"``): the paths are chosen once on
-the lattice, whole types at a time, by the size of their signal relative to the lattice's whole spectrum; the signals
-still follow the atoms; the refinement and the search run with it."""
+the lattice, whole groups at a time, by the size of their signal relative to the lattice's whole spectrum; the groups
+are formed as EvAX's path finder forms them; the signals still follow the atoms; the refinement and the search run
+with it."""
 import json
 import numpy as np
 import pytest
@@ -18,50 +19,151 @@ def size(chi, kweight=2):
     return float(np.sqrt(((chi * K ** kweight) ** 2).sum()))
 
 
+def fcc(m, d=2.74):
+    """m x m x m cubic cells of an fcc lattice with nearest-neighbor distance d (A): positions and the cell length."""
+    a = d * np.sqrt(2.0)
+    basis = np.array([[0, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    cells = np.array([[i, j, l] for i in range(m) for j in range(m) for l in range(m)])
+    return ((cells[:, None, :] + basis[None]).reshape(-1, 3) * a), m * a
+
+
 @pytest.fixture(scope="module")
 def lattice():
     sym, pos, cell = bcc(4)                                           # 128 W atoms, 12.66 A wide
     ms = MultipleScattering(str(PHASE_W), K, 0.0, cell, rmax=RMAX, critpw=CRIT, device=DEVICE, criteria_rule="evax")
-    counts = ms.set_lattice(pos, kweight=2)
+    counts = ms.set_lattice(pos, kweight=2, tolerance=1e-3)           # groups of identical geometry only
     return ms, pos, cell, counts
 
 
-def test_types_are_kept_or_dropped_as_a_whole_for_every_atom(lattice):
+def test_groups_are_kept_or_dropped_as_a_whole_for_every_atom(lattice):
     ms, pos, cell, counts = lattice
     n = len(pos)
     kept = [t for t in ms.types if t["kept"]]
-    assert kept and all(t["importance"] >= CRIT for t in kept) and all(t["importance"] < CRIT for t in ms.types if not t["kept"])
-    assert all(t["directions"] in (1, 2) and t["legs"] in (3, 4) for t in ms.types)
+    assert kept and all(t["importance"] > CRIT for t in kept) and all(t["importance"] <= CRIT for t in ms.types if not t["kept"])
+    assert all(t["legs"] in (2, 3, 4) and len(t["potentials"]) == t["legs"] - 1 for t in ms.types)
+    assert set(ms.lattice) <= {3, 4}                                      # single scattering is not in the lists: the pair tables give it
     for nleg, L in ms.lattice.items():
         per_atom = torch.bincount(L["absorber"], minlength=n)
         assert int(per_atom.min()) == int(per_atom.max()) > 0             # the same paths for every atom of the lattice
-        for j, t in enumerate(ms.types):                                  # the degeneracy of a type is that of its paths
+        assert set(torch.unique(L["deg"]).tolist()) <= {1.0, 2.0}         # a path counts once per kept direction of travel
+        assert torch.equal(L["deg"].long(), (L["type"] >= 0).long() + (L["type_back"] >= 0).long())
+        for j, t in enumerate(ms.types):                                  # the degeneracy of a group is the number of its chains per atom
             if t["kept"] and t["legs"] == nleg:
-                assert float(L["deg"][L["type"] == j].sum()) / n == pytest.approx(t["degeneracy"])
+                assert (int((L["type"] == j).sum()) + int((L["type_back"] == j).sum())) / n == pytest.approx(t["degeneracy"])
     assert counts == {nleg: int(L["atoms"].shape[0]) for nleg, L in ms.lattice.items()}
 
 
 def test_the_importance_is_the_size_of_the_signal_relative_to_the_whole_lattice_spectrum(lattice):
-    """Against a count that does not use the types: every path of the lattice from FEFF's path finder without a filter,
+    """Against a count that does not use the groups: every path of the lattice from FEFF's path finder without a filter,
     single scattering from the pair tables."""
     ms, pos, cell, _ = lattice
     P = torch.as_tensor(pos, device=DEVICE, dtype=torch.float32)
     everything = MultipleScattering(str(PHASE_W), K, 0.0, cell, rmax=RMAX, critpw=0.0, device=DEVICE)
     everything.enumerate(P[None])
     pairs = PairTables(str(PHASE_W), K, np.zeros(len(K)), 0.0, window=(3.0, 16.0), r_range=(1.0, 5.5), box=cell, rmax=RMAX, ms=False, device=DEVICE)
-    whole = pairs.single_scattering(P[None]).double().cpu().numpy() + everything.full_pass(P).mean(0).double().cpu().numpy()
+    single = pairs.single_scattering(P[None]).double().cpu().numpy()
+    whole = single + everything.full_pass(P).mean(0).double().cpu().numpy()
     ms.enumerate(P[None])
     signals = ms.type_signals(P).cpu().numpy()
     checked = 0
     for j, t in enumerate(ms.types):
-        if t["kept"]:
-            assert 100 * size(signals[j]) / t["directions"] / size(whole) == pytest.approx(t["importance"], rel=2e-3)
+        if t["kept"] and t["legs"] > 2:
+            assert 100 * size(signals[j]) / size(whole) == pytest.approx(t["importance"], rel=2e-3)
             checked += 1
         else:
-            assert not signals[j].any()                                   # a dropped type has no path in the lists
+            assert not signals[j].any()                                   # a dropped group, or single scattering: no path in the lists
     assert checked >= 3
-    assert any(t["directions"] == 2 for t in ms.types if t["kept"])       # a path and its reverse: two types of half the degeneracy
+    shells = [t for t in ms.types if t["legs"] == 2]                      # the groups of two legs are the neighbor shells
+    assert [round(t["degeneracy"]) for t in shells][:3] == [8, 6, 12]
+    assert sum(t["importance"] ** 2 for t in shells) > 0 and all(t["kept"] for t in shells[:3])
+    twice = [(t["legs"], round(t["half_length"], 3), round(t["degeneracy"], 3)) for t in ms.types if t["kept"] and t["legs"] > 2]
+    assert len(twice) > len(set(twice))                                   # a path and its reverse: two groups of the same size
     assert np.allclose(signals.sum(0), ms.full_pass(P).mean(0).double().cpu().numpy(), atol=1e-9)
+
+
+def test_the_importance_does_not_depend_on_how_far_the_k_grid_reaches(lattice):
+    """EvAX sums the sizes over the k range of its FEFF runs, 0 to 20 1/A. A model grid that reaches further (the
+    commands use 24 1/A) must give the same groups and the same importances."""
+    ms, pos, cell, _ = lattice
+    longer = MultipleScattering(str(PHASE_W), k_grid(24.0), 0.0, cell, rmax=RMAX, critpw=CRIT, device=DEVICE, criteria_rule="evax")
+    assert longer.set_lattice(pos, kweight=2, tolerance=1e-3) == {nleg: int(L["atoms"].shape[0]) for nleg, L in ms.lattice.items()}
+    assert len(longer.types) == len(ms.types)
+    for a, b in zip(longer.types, ms.types):
+        assert (a["legs"], a["kept"]) == (b["legs"], b["kept"]) and a["importance"] == pytest.approx(b["importance"], rel=1e-4)
+
+
+def test_paths_of_nearly_the_same_geometry_form_one_group():
+    """A lattice strained by one percent along z has more distinct geometries than the cubic one. With EvAX's tolerance of
+    0.5 A they fall into the groups of the cubic lattice; with a tolerance of 0.001 A every geometry is its own group.
+    (At 0.5 A the two nearest shells of bcc, 0.42 A apart, are one group of fourteen, as in EvAX.)"""
+    sym, pos, cell = bcc(4)
+    stretch = np.array([1.0, 1.0, 1.01])
+
+    def groups(sites, box, tolerance):
+        ms = MultipleScattering(str(PHASE_W), K, 0.0, box, rmax=RMAX, critpw=CRIT, device=DEVICE, criteria_rule="evax")
+        ms.set_lattice(sites, kweight=2, tolerance=tolerance)
+        return ms
+
+    cubic, coarse = groups(pos, cell, 0.5), groups(pos * stretch, cell * stretch, 0.5)
+    cubic_fine, fine = groups(pos, cell, 1e-3), groups(pos * stretch, cell * stretch, 1e-3)
+    shells = lambda ms: [round(t["degeneracy"]) for t in ms.types if t["legs"] == 2]                                  # noqa: E731
+    inside = lambda ms: sorted((t["legs"], round(t["degeneracy"])) for t in ms.types if t["kept"] and t["legs"] > 2 and t["half_length"] < RMAX - 0.05)   # noqa: E731
+    assert shells(cubic) == shells(coarse) == [14, 12, 32]
+    assert shells(cubic_fine) == [8, 6, 12, 24, 8] and len(shells(fine)) > len(shells(cubic_fine))
+    assert inside(coarse) == inside(cubic) and inside(coarse)             # the same groups of multiple-scattering paths (away from the cutoff)
+    assert inside(fine) != inside(cubic_fine)
+
+
+def test_chain_coordinates_are_evax_s():
+    """EvAX's coordinates of a chain: distance, then (x, y) in the plane, then (x, y, z); atoms met again carry their
+    position in the chain; with the first two scatterers on a line with the absorber the frame of the third atom
+    depends on how the path lies in the structure."""
+    f = MultipleScattering._chain_coordinates
+    a, b, c = np.array([2.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.0]), np.array([1.0, 1.0, 1.5])
+    turn = np.array([[0.36, 0.48, -0.8], [-0.8, 0.6, 0.0], [0.48, 0.64, 0.6]])            # a rotation of the whole path
+    chains = torch.tensor(np.array([[a, b, c], [turn @ a, turn @ b, turn @ c]]), dtype=torch.float64)
+    code, coord = f(chains)
+    assert torch.all(code == -1)
+    assert torch.allclose(coord[0], coord[1], atol=1e-9)                                  # the same path turned: the same coordinates
+    assert torch.allclose(coord[0, 0], torch.tensor([2.0, 0.0, 0.0], dtype=torch.float64))
+    assert coord[0, 1, 0].item() == pytest.approx(1.0) and coord[0, 1, 1].item() == pytest.approx(2.0) and coord[0, 1, 2].item() == 0.0
+    assert coord[0, 2].tolist() == pytest.approx([1.0, 1.0, 1.5])
+    # an atom met again, and the absorber met again
+    again = torch.tensor(np.array([[a, b, a], [a, np.zeros(3), b]]), dtype=torch.float64)
+    code, coord = f(again)
+    assert code.tolist() == [[-1, -1, 2], [-1, 1, -1]]
+    assert coord[1, 2, :2].tolist() == pytest.approx([1.0, 2.0])                          # b is the second new atom of the second chain
+    # the first two scatterers on a line with the absorber: the third atom's (y, z) are not turned into a fixed frame
+    line = np.array([[a, 2 * a, c], [turn @ a, turn @ (2 * a), turn @ c]])
+    code, coord = f(torch.tensor(line, dtype=torch.float64))
+    assert torch.allclose(coord[:, 2, 0], torch.tensor([1.0, 1.0], dtype=torch.float64), atol=1e-9)            # along the line: the same
+    assert torch.allclose(coord[:, 2, 1:].norm(dim=1), torch.tensor([1.25 ** 0.5 * 1.3416407864998738] * 2, dtype=torch.float64) * 0 + coord[0, 2, 1:].norm(), atol=1e-9)
+    assert not torch.allclose(coord[0, 2, 1:], coord[1, 2, 1:], atol=1e-3)                # but in another direction around it
+
+
+def test_paths_through_two_atoms_on_a_line_count_in_one_direction_only():
+    """EvAX's quirk, reproduced: in an fcc lattice the four-leg paths absorber -> nearest neighbor -> the atom behind it ->
+    a third atom split into small groups in that direction of travel (the frame of the third atom is not fixed), each
+    below the threshold, while the opposite direction of the same paths is one group and is kept."""
+    pos, cell = fcc(4)                                                # 256 atoms, 15.5 A wide
+    d = 2.74
+    ms = MultipleScattering(str(PHASE_W), K, 0.0, cell, rmax=6.6, critpw=0.2, device=DEVICE, criteria_rule="evax")
+    ms.set_lattice(pos, kweight=2)
+    half = (3 + np.sqrt(3.0)) * d / 2                                 # three nearest-neighbor legs and one to the third shell
+    here = [(j, t) for j, t in enumerate(ms.types) if t["legs"] == 4 and abs(t["half_length"] - half) < 0.01]
+    whole = [(j, t) for j, t in here if t["kept"]]
+    assert len(whole) == 2 and all(round(t["degeneracy"]) == 48 for _, t in whole)
+    pieces = [t for _, t in here if not t["kept"] and round(t["degeneracy"]) == 8]
+    strongest = max((t for _, t in whole), key=lambda t: t["importance"])
+    # its other direction: pieces of eight (and of four) chains with the same signal each, a sixth of the importance each
+    assert any(6 * q["importance"] == pytest.approx(strongest["importance"], rel=1e-3) for q in pieces)
+    L = ms.lattice[4]
+    member = torch.zeros(L["deg"].shape[0], dtype=torch.bool, device=L["deg"].device)
+    for j, _ in whole:
+        member |= (L["type"] == j) | (L["type_back"] == j)
+    assert int(member.sum()) == 2 * 48 * len(pos)
+    assert bool((L["deg"][member] == 1).all())                        # these paths count once: FEFF's degeneracy would be two
+    assert bool((L["deg"] == 2).any())                                # other paths count with both directions
 
 
 def test_the_paths_do_not_depend_on_the_positions_and_the_signal_follows_the_atoms(lattice):

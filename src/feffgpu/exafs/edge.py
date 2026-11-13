@@ -95,8 +95,11 @@ class EdgeModel(SpectrumComparison):
     criteria_rule : str
         What ``criteria`` measures. ``"feff"`` (default): FEFF's plane-wave importance of each path of the structure as
         it is, relative to the shortest single-scattering path. ``"evax"``: EvAX's rule: the size of the signal of each
-        type of path on the lattice, relative to the whole spectrum of the lattice; the paths are then chosen once
+        group of paths on the lattice, relative to the whole spectrum of the lattice; the paths are then chosen once
         (``ms.set_lattice``) and kept for every structure.
+    group_tolerance : float
+        For ``criteria_rule = "evax"``: paths whose atoms lie within this distance (A) of each other, atom by atom,
+        belong to one group (EvAX's ``Pathfinder_robustness``).
     multiple_scattering : bool
         False: single scattering only.
     pair_windows : dict, optional
@@ -137,7 +140,7 @@ class EdgeModel(SpectrumComparison):
     def __init__(self, name, k, data, window: FitWindow, phase, symbols, cell, absorber, potentials=None, e0=0.0, s02=1.0,
                  fit_s02=False, fit_e0=False, rpath=6.0, nleg=4, criteria=2.5, multiple_scattering=True, pair_windows=None,
                  pair_min=1.5, table_pad=1.0, chunk=2048, state_chunk=4, ignore=(), objective="r_factor", wavelet_r0=None,
-                 device="cuda", criteria_rule="feff"):
+                 device="cuda", criteria_rule="feff", group_tolerance=0.5):
         if objective not in OBJECTIVES:
             raise ValueError(f"{name}: unknown objective {objective!r}; use one of {sorted(OBJECTIVES)}")
         if int(nleg) not in (2, 3, 4):
@@ -174,7 +177,7 @@ class EdgeModel(SpectrumComparison):
                                 r_min=pair_min, ms=False, chunk=chunk, device=self.device, kweight=self.kweight, dk=self.dk)
         self.r0, self.dr, self.nr = self.pairs.r0, self.pairs.dr, self.pairs.nr
         use_ms = bool(multiple_scattering) and self.nlegmax >= 3
-        self.criteria_rule = criteria_rule
+        self.criteria_rule, self.group_tolerance = criteria_rule, float(group_tolerance)
         self.ms = MultipleScattering(phase, self.k, self.e0, cell, rmax=self.rmax, critpw=self.critpw, chunk=chunk, device=self.device,
                                      nlegmax=self.nlegmax, criteria_rule=criteria_rule) if use_ms else None
         self.objective, self.space = objective, OBJECTIVES[objective]

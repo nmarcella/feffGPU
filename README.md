@@ -7,7 +7,7 @@ gives all three:
 |---|---|---|
 | **feffgpu** | `feffgpu` | a FEFF input file to chi(k): potentials with the self-consistency loop, phase shifts, the path finder and the path stage, validated against FEFF 8.5L; the path stage is batched over hundreds of thousands of paths and differentiable in the atom positions |
 | **MD-EXAFS** | `md-exafs` | the EXAFS spectrum of any molecular dynamics trajectory, averaged over frames and absorbing atoms, with its decomposition by path type, radial distribution tools, and a comparison with a measured spectrum |
-| **RMC-EXAFS** | `rmc-exafs` | reverse Monte Carlo fitting: the atoms of a model structure are moved until its spectra fit the measured ones, by a population search that follows the rules of EvAX and by gradient refinement |
+| **RMC-EXAFS** | `rmc-exafs` | reverse Monte Carlo fitting: the atoms of a model structure are moved until its spectra fit the measured ones. The default engine is a gradient refinement on the exact spectra (any elements, several edges, minutes on one GPU); a population search that follows the rules of EvAX is included. Commissioning against EvAX's published calculations is underway |
 
 EXAFS is the extended X-ray absorption fine structure; chi(k) is the EXAFS signal as a function of the
 photoelectron wave number k; FEFF is the program that calculates chi(k) from atom positions.
@@ -123,13 +123,45 @@ md-exafs compare mdexafs_out              # against a measured spectrum: R-facto
 
 ```bash
 rmc-exafs validate config.toml
-rmc-exafs run config.toml                 # the search; fitted states, spectra, history, report
-rmc-exafs shells runs/my_fit --shell Zn-C:1.8:2.6      # N, R, MSRD by integration, with the spread over states
+rmc-exafs refine config.toml              # the default: gradient refinement; any elements, several edges
+rmc-exafs run config.toml                 # the population search under EvAX's rules (exchanges, hops, several samples)
+rmc-exafs shells runs/my_fit --shell Zn-C:1.8:2.6      # N, R, MSRD by integration
+rmc-exafs plot runs/my_fit                # the fits and the pair distributions
+rmc-exafs from-evax start.dat my_run      # the same problem as an EvAX calculation: structure, spectra, rmc.toml
 ```
 
 `md-exafs example` and `rmc-exafs example` list commented example configurations; `md-exafs schema` and
 `rmc-exafs schema` print every key. Examples that generate their own synthetic inputs are in
 [`examples/`](examples/). The quick starts are in the documentation.
+
+## RMC-EXAFS: commissioning against EvAX (underway)
+
+RMC-EXAFS is being commissioned against calculations that the authors of EvAX publish with their inputs and outputs
+([the EvAX library](https://www.dragon.lv/evax/library.html)). Each calculation is translated with
+`rmc-exafs from-evax`, fitted with `rmc-exafs refine` against EvAX's own target with EvAX's choice of scattering
+paths, and compared with EvAX's output files. EvAX itself is not run. The misfit is EvAX's own measure.
+
+| Calculation | Atoms | EvAX's run | `rmc-exafs refine` | Misfit: EvAX | Misfit: this package |
+|---|---|---|---|---|---|
+| Pt foil, Pt L3 edge | 500 | 17 h | 8.5 min | 0.108 | 0.095 |
+| Cu2O, Cu K edge | 384 | 44 h | 12 min | 0.193 | 0.185 |
+| Ga2O3, Ga K edge | 480 (here 600) | 23 h | 19 min | 0.121 | 0.135 |
+| Au147 particle, Au L3 edge | 147 | 31 h | 7 min | 0.176 | 0.170 |
+
+![Four calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](docs/rmc/commissioning_evax.png)
+
+Black: EvAX's target. Orange: EvAX's fit and final atoms. Blue: this package's fit and final atoms.
+
+- Shell distances of the two final structures agree within 0.003 Å for the Pt foil, Cu2O and Ga2O3 and within
+  0.014 Å for the Au147 particle; shell variances within a few percent to 25 %.
+- EvAX's run times are read from the dates of its output files (16 threads); this package ran on one 12 GB GPU.
+  These are single runs: the spread between independent refinements has not been measured yet.
+- Still open: a PdAu particle with two edges fitted together (not yet converged), paths of more than four legs
+  (needed by three further calculations of the library), and the spread between runs.
+
+The full tables, what was checked underneath (the forward model against FEFF itself on EvAX's atoms, the lists of
+paths) and the sources of the calculations are in
+[docs/rmc/commissioning.md](docs/rmc/commissioning.md). When you use RMC-EXAFS, cite EvAX ([docs/citing.md](docs/citing.md)).
 
 ## Tutorials
 

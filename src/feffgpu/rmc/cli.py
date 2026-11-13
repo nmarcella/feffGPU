@@ -88,6 +88,35 @@ def cmd_schema(args):
     return 0
 
 
+def cmd_from_evax(args):
+    from .evax import EvaxCalculation
+    outputs = None
+    if args.outputs:
+        outputs = {}
+        for item in args.outputs:
+            if "=" in item:
+                el, d = item.split("=", 1)
+                outputs[el.strip()] = d
+            else:
+                outputs = item
+                break
+    calc = EvaxCalculation(args.parameter_file, inputs=args.inputs or None, outputs=outputs)
+    supercell = [int(v) for v in args.supercell.split(",")] if args.supercell else None
+    res = calc.write_inputs(args.folder, target=args.target, supercell=supercell, gradient_steps=args.gradient_steps, states=args.states or None,
+                            generations=args.generations or None, energy_shift=args.energy_shift, label=args.label)
+    res["spectra"] = [s.name for s in calc.spectra]
+    if args.json:
+        _print_json(res)
+        return 0
+    print(f"written {res['config']} for {len(calc.spectra)} spectrum(s): " + ", ".join(res["spectra"]))
+    print("compute the phase files in that folder first:")
+    for c in res["phase_commands"]:
+        print("   " + c)
+    for n in res["notes"]:
+        print("note: " + n)
+    return 0
+
+
 def cmd_example(args):
     from .config import example_configs
     ex = example_configs()
@@ -245,6 +274,21 @@ def parser():
     p = add("validate", cmd_validate, "check a configuration and the files it names, without running (no GPU)")
     p.add_argument("config")
     add("schema", cmd_schema, "print the JSON Schema of the configuration", json_=False)
+    p = add("from-evax", cmd_from_evax, "write the inputs of rmc-exafs for an EvAX calculation (its parameter file and the files it names)")
+    p.add_argument("parameter_file", help="EvAX's parameter file (start.dat)")
+    p.add_argument("folder", help="the folder to write: start.extxyz, the spectra, the FEFF inputs of the potentials, rmc.toml")
+    p.add_argument("--inputs", default="", help="directory of the structure file and the spectra (default: that of the parameter file)")
+    p.add_argument("--outputs", action="append", default=[], help="EvAX's output directory, or ELEMENT=directory for each spectrum (repeat); "
+                   "with it the start keeps EvAX's atom order and --target evax can be used")
+    p.add_argument("--target", choices=["data", "evax"], default="data", help="data: the measured spectra, S02 and dE0 on the model; "
+                   "evax: EvAX's own targets (its ipolEXAFS.dat), for comparisons with its output")
+    p.add_argument("--supercell", default="", help="another repetition of the unit cell than EvAX's, as a,b,c")
+    p.add_argument("--gradient-steps", type=int, default=0, help="gradient steps after every random move of the search (0: EvAX's rule)")
+    p.add_argument("--states", type=int, default=0, help="states of the search (default EvAX's Number_of_states)")
+    p.add_argument("--generations", type=int, default=0, help="generations (default EvAX's Stop_after or Froze_in)")
+    p.add_argument("--energy-shift", type=float, default=0.0, help="added to de0 (eV): the difference of the energy origin between the FEFF build "
+                   "EvAX ran and this package")
+    p.add_argument("--label", default="sample", help="name of the sample (its output subdirectory)")
     p = add("example", cmd_example, "list the example configurations, or print (or write) one")
     p.add_argument("name", nargs="?", default="")
     p.add_argument("--out", default="", help="write the example to this file")

@@ -2,7 +2,7 @@
 
 A synthetic test from start to finish. The script builds a 2 x 2 x 2 block of a Zn-C rock salt (64 atoms), displaces
 every atom at random by 0.05 Å per coordinate, and makes the C K-edge spectrum of that disordered block with the
-package's own forward model, with S0² 0.90 and an E0 shift of +1.5 eV. That spectrum is the "measured" one. The search
+package's own forward model, with S0² 0.90 and an E0 shift of +1.5 eV. That spectrum is the "measured" one. The fit
 starts from the ideal block and has to find the disorder. The answer is known: `truth.json`.
 
 The phase file is FEFF 8.5L's own, from the validation case `data/validation/A000` (potentials 0 C absorber, 1 Zn,
@@ -13,7 +13,9 @@ The phase file is FEFF 8.5L's own, from the validation case `data/validation/A00
 ```bash
 cd examples/rmc_exafs
 python make_synthetic_target.py              # start.vasp, target.chi, truth.json (prints the planted shells)
-rmc-exafs validate config.toml
+rmc-exafs refine config_refine.toml          # the default engine: gradient refinement; about one minute on one GPU
+rmc-exafs shells runs/example_refine --shell C-Zn:1.6:2.8 --shell C-C:2.6:3.6 --shell C-Zn:3.2:4.3
+rmc-exafs validate config.toml               # the population search under EvAX's rules:
 rmc-exafs run config.toml                    # S0^2 and the E0 shift fitted; about 4 minutes on one GPU
 rmc-exafs run config_held.toml               # the same with S0^2 and the E0 shift held at 0.90 and +1.5 eV
 rmc-exafs shells runs/example --shell C-Zn:1.6:2.8 --shell C-C:2.6:3.6 --shell C-Zn:3.2:4.3
@@ -27,7 +29,10 @@ rmc-exafs signal-map runs/example_held --components Zn:1.5,2.8,4.3 --out runs/ex
 The numbers below are from one run on one GPU; another GPU gives the same run up to the last digits of its additions,
 so expect the same numbers to two or three significant figures.
 
-- The misfit (the R-factor of the C edge) falls from about 2.3 at the ideal start (the ideal block has no disorder,
+- **The refinement** (`config_refine.toml`, S0² and the E0 shift held): the misfit falls from 1.5 to below 0.001 in
+  40 steps; the shells of the final structure are the planted ones to better than 0.001 Å in R and to a few percent
+  in the MSRD (first C-Zn shell 2.190 Å, 0.0055 Å²; C-C 0.0055 Å²; second C-Zn 0.0046 Å²).
+- In the search, the misfit (the R-factor of the C edge) falls from about 2.3 at the ideal start (the ideal block has no disorder,
   so its spectrum is far too strong) to about 0.01 after the first generation and below 1e-3 within 50 generations.
 - **S0² and the E0 shift held** (`config_held.toml`): the misfit reaches about 6e-6 and the shells of the best state
   are the planted ones: first C-Zn shell R 2.190 Å, MSRD 0.0054 Å² (planted 2.190 Å, 0.0054 Å²); C-C shell 0.0058 Å²

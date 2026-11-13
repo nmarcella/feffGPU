@@ -36,9 +36,27 @@ The first public version: one package with three tools.
   that needs.
 - How to translate an EvAX parameter file, in "Differences from EvAX".
 - `criteria_rule = "evax"` for an edge of `rmc-exafs`: the multiple-scattering paths are chosen once on the start
-  lattice the way EvAX chooses them (whole types of paths, by the size of their signal relative to the lattice's
-  spectrum), instead of by FEFF's filter on every path of each structure. `feffgpu.exafs.MultipleScattering` has
-  `set_lattice`, the table `types` and `type_signals` for it.
+  lattice the way EvAX chooses them, instead of by FEFF's filter on every path of each structure. The paths are
+  gathered into groups as in EvAX's path finder (each direction of travel on its own, atoms within
+  `group_tolerance`, EvAX's `Pathfinder_robustness` of 0.5 Å), and a group is kept by the size of its signal relative
+  to the lattice's spectrum, summed over k to 20 Å⁻¹ as in EvAX. On six calculations of EvAX's library the kept
+  groups agree with EvAX's own lists exactly or to one group at the threshold. `feffgpu.exafs.MultipleScattering`
+  has `set_lattice`, the table `types` (in the form of EvAX's `partialEXAFS.dat`) and `type_signals` for it.
+- **The gradient refinement for several elements and several spectra** (`rmc-exafs refine`,
+  `feffgpu.rmc.EdgeRefinement`): any elements, several edges of one sample, particles; each spectrum with its own
+  objective (the R-factor or a wavelet residual); the displacement limit and the closest distances of
+  `[constraints]`. It includes the gradient of the multiple scattering, which the gradient steps of the population
+  search leave out; where multiple scattering is strong those steps stall and the refinement converges.
+- **The gradient refinement is the default engine of RMC-EXAFS**: the quick start, the example
+  (`examples/rmc_exafs/config_refine.toml`) and the tutorial lead with `rmc-exafs refine`; a refinement also writes
+  the files the analysis commands read, so `rmc-exafs shells`, `rdf`, `angles`, `short-pairs` and `plot` work on it.
+- **Commissioning against EvAX's published calculations** (underway): the page "Commissioning against EvAX" with the
+  first four comparisons (a Pt foil, Cu2O, Ga2O3, an Au147 particle), `tools/compare_with_evax.py` and
+  `tools/plot_evax_comparison.py`.
+- **Reading EvAX calculations** (`feffgpu.rmc.EvaxCalculation`, command `rmc-exafs from-evax`): EvAX's parameter
+  file in both of its layouts, the structure, the spectra and the output files; writes the start structure, the
+  spectra, the FEFF inputs of the potentials (EvAX's rule for the radius of the self-consistency loop) and the
+  configuration of `rmc-exafs` for the same problem.
 - A figure of the agreement with FEFF 8.5L for every environment of the validation, by element and edge
   (`docs/validation/agreement_by_element_and_edge.png`, drawn by `tools/plot_validation_agreement.py` from
   `data/validation/agreement.npz`), and tests of the window, the Fourier transform and the R-factor against xraylarch

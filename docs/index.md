@@ -8,8 +8,9 @@
 - **MD-EXAFS**: the EXAFS spectrum of a molecular dynamics trajectory, averaged over frames and absorbing atoms,
   with its decomposition by path type, radial distribution tools, and a comparison with a measured spectrum.
 - **RMC-EXAFS**: reverse Monte Carlo fitting. The atoms of a model structure are moved until its calculated
-  spectra fit the measured ones, by a population search that follows the rules of EvAX and by gradient
-  refinement.
+  spectra fit the measured ones. The default engine is a gradient refinement on the exact spectra; a population
+  search that follows the rules of EvAX is included. Its commissioning against EvAX's published calculations is
+  underway ([](rmc/commissioning.md)).
 
 EXAFS is the extended X-ray absorption fine structure. chi(k) is the EXAFS signal as a function of the
 photoelectron wave number k. FEFF is the program that calculates chi(k) from atom positions.

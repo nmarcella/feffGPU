@@ -97,8 +97,12 @@ log_every = 30
     assert rep["misfit_final"] < 0.2 * rep["misfit_start"]
     z = np.load(tmp_path / "out/w/refine.npz")
     assert z["positions"].shape == (2, len(pos), 3) and (tmp_path / "out/config.resolved.toml").exists()
-    (tmp_path / "bad.toml").write_text((tmp_path / "r.toml").read_text().replace('structure = "w.vasp"', 'structure = "w2.vasp"'))
-    sym2 = sym.copy()
-    sym2[0] = "Mo"
-    write_poscar(tmp_path / "w2.vasp", sym2, pos, cell)
-    assert main(["refine", str(tmp_path / "bad.toml")]) == 2                                  # the refinement takes one element
+    assert rep["method"] == "feffgpu.rmc: gradient refinement"                                # one element, one R-factor spectrum: GpuRmc
+    # the analysis commands read the refinement: the copies are the cells of one state
+    from feffgpu.rmc.analysis import load_states, plot_run
+    d = load_states(tmp_path / "out/w")
+    assert d["population"].shape == (1, 2, len(pos), 3) and np.allclose(d["best"], z["positions"])
+    assert main(["shells", str(tmp_path / "out"), "--shell", "W-W:2.2:3.0", "--json"]) == 0
+    assert {f.name for f in plot_run(tmp_path / "out/w")} == {"fits.png", "pairs.png"}
+    with np.load(tmp_path / "out/w/spectra.npz") as sp:                                       # the data as measured, the models as compared with it
+        assert np.allclose(sp["data_W"], chi, atol=1e-6) and sp["model_refit_W"].shape == chi.shape

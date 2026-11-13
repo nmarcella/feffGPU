@@ -77,7 +77,17 @@ S0² and the E0 shift of several spectra, shared by name: `feffgpu.exafs.fit_sha
 
 ## The gradient refinement
 
-`feffgpu.rmc.GpuRmc` ([](refinement.md)).
+`feffgpu.rmc.GpuRmc` (one element, one spectrum) and `feffgpu.rmc.EdgeRefinement` (any elements, several spectra;
+built on the edge models that `build_sample` returns) ([](refinement.md)).
+
+## EvAX calculations
+
+`feffgpu.rmc.EvaxCalculation(parameter_file, inputs=None, outputs=None)` reads an EvAX parameter file, the structure
+and spectra it names and, if given, EvAX's output files: `spectra` (the settings of every spectrum), `sites()` (the
+start structure), `final()` (EvAX's final atoms), `data(i)`, `target(i)`, `fitted(i)`, `path_groups(i)`,
+`feff_input(i)`, `minimum_supercell()`, and `write_inputs(folder, ...)`, which writes what `rmc-exafs from-evax`
+writes ([](evax_differences.md)). `feffgpu.rmc.read_parameters(path)` gives the keywords alone and
+`feffgpu.rmc.scf_radius(distances, r_scf)` EvAX's radius of the self-consistency loop.
 
 ## For programs and agents
 

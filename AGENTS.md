@@ -93,7 +93,8 @@ src/feffgpu/
   parallel/       SHARED: devices, shards, keyed random streams, run_items (the access points for several GPUs)
   md/             MD-EXAFS: configuration, frames -> spectra, HDF5 cache, shards and merge, comparison, commands
   rmc/            RMC-EXAFS: configuration, model structure, constraints, moves, the EvAX-rule search, gradient
-                  refinement, outputs, commands
+                  refinement (one element: GpuRmc; any elements and several spectra: EdgeRefinement), reading
+                  EvAX calculations (evax.py), outputs, commands
   mcp/            the MCP server (server.py: tools as plain methods; jobs.py: background jobs in a workspace)
 tests/            test_*.py (core, shared layer, agent interface), tests/md, tests/rmc
 docs/             Sphinx + MyST sources (Read the Docs); docs/md and docs/rmc are the tools' user guides

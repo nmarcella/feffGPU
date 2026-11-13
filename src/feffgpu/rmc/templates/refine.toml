@@ -1,8 +1,10 @@
-# The gradient refinement (`rmc-exafs refine`): copies of a cell of one element refined together by gradient descent
-# on the exact spectrum, with a hard core and nothing else (no lattice, no limit on the displacements).
+# The gradient refinement (`rmc-exafs refine`), the default engine: the atoms move downhill on the misfit of the exact
+# spectra, with the gradient of single and of multiple scattering. Any elements and several [[sample.edge]] blocks
+# are allowed; with those, [constraints] max_displacement and closest_distance apply and each edge may name its
+# objective.
 #
-# Example: an fcc copper block measured at the Cu K edge. The target is the measured chi divided by S0^2; the model is
-# evaluated at the E0 shift de0 (both held). Relative paths are relative to this file.
+# Example: an fcc copper block measured at the Cu K edge. S0^2 and the E0 shift de0 are held. Relative paths are
+# relative to this file.
 #
 #   rmc-exafs refine refine.toml
 

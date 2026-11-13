@@ -1,6 +1,7 @@
 """Readers for the files of an EvAX run (Timoshenko and Kuzmin's reverse Monte Carlo program), so that an EvAX input
 can be used here and an EvAX result compared with a result of this package."""
 from __future__ import annotations
+import re
 from pathlib import Path
 import numpy as np
 
@@ -11,14 +12,27 @@ def read_cell_file(path):
     return scale * np.array([[float(v) for v in lines[i].split()[:3]] for i in (2, 3, 4)])
 
 
-def read_evax_params(path):
-    """start*.txt: {keyword: value string}."""
+def read_parameters(path):
+    """The keywords of an EvAX parameter file: ``{keyword: [values]}``.
+
+    Both layouts are read: ``Keyword value value`` and ``Keyword: value``. Lines that start with ``#`` and the marks
+    ``BEGIN`` and ``END`` are skipped; a later line with the same keyword replaces an earlier one."""
     out = {}
-    for ln in Path(path).read_text().splitlines():
-        t = ln.split()
-        if len(t) >= 2 and not t[0].startswith("#") and t[0] not in ("BEGIN", "END"):
-            out[t[0]] = " ".join(t[1:])
+    for line in Path(path).read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line in ("BEGIN", "END"):
+            continue
+        key, _, value = line.partition(" ") if not re.match(r"^\S+:\s", line + " ") else line.partition(":")
+        key = key.strip().strip("'\"").rstrip(":").strip("'\"")
+        if key:
+            out[key] = value.replace(":", " ").split()
     return out
+
+
+def read_evax_params(path):
+    """An EvAX parameter file (``start.dat``) as ``{keyword: value string}`` (``read_parameters`` with the values of
+    a keyword joined by a blank; lines with a keyword and no value are left out)."""
+    return {key: " ".join(values) for key, values in read_parameters(path).items() if values}
 
 
 def read_evax_rdf(path):

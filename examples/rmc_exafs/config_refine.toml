@@ -1,0 +1,45 @@
+# The RMC-EXAFS example with the gradient refinement, the default engine of rmc-exafs.
+#
+# One structure moves downhill on the misfit, with the gradient of single and multiple scattering. S0^2 and the E0
+# shift are held at the values the synthetic spectrum was made with (0.90 and +1.5 eV), as they would be held from a
+# reference compound.
+#
+#   rmc-exafs refine config_refine.toml
+
+[run]
+output = "runs/example_refine"
+seed = 1
+devices = "cuda"
+
+[[sample]]
+label = "rocksalt"
+structure = "start.vasp"
+
+  [[sample.edge]]
+  name = "C"
+  absorber = "C"
+  chi = "target.chi"
+  phase = "../../data/validation/A000/phase.pad"   # FEFF 8.5L's phase file: potential 0 is the C absorber
+  potentials = { Zn = 1, C = 2 }
+  window = { kmin = 3.0, kmax = 12.0, dk = 1.0, kweight = 2, rmin = 1.0, rmax = 4.0 }
+  rpath = 4.3                                      # at most half the cell's width (8.75 A)
+  nleg = 3
+  criteria = 2.5
+
+[amplitude]
+mode = "fixed"
+s02 = 0.90
+de0 = 1.5
+
+[constraints]
+max_displacement = 0.4                             # every atom stays within 0.4 A of its start position
+closest_distance = { "C-Zn" = 1.8, "C-C" = 2.6, "Zn-Zn" = 2.6 }
+
+[refine]
+copies = 1
+steps = 200                                        # steps of gradient descent
+step_size = 0.003                                  # A: root-mean-square move of a coordinate per step
+ms_absorbers = 32                                  # absorbers per step for the multiple-scattering gradient (all 32 here)
+core_distance = 1.5                                # A: closest distance of the pairs that closest_distance does not name
+start_kick = 0.01                                  # A: random displacement of the start
+log_every = 20

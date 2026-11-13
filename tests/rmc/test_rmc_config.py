@@ -24,8 +24,9 @@ def test_every_shipped_example_matches_the_schema(name):
 @pytest.mark.parametrize("path", EXAMPLES, ids=[p.name for p in EXAMPLES])
 def test_the_repository_examples_match_the_schema(path):
     cfg = C.RmcConfig.model_validate(tomllib.loads(path.read_text()))
-    assert cfg.search is not None and len(cfg.sample) == 1 and len(cfg.sample[0].edge) == 1 and cfg.moves.hops is None
-    assert len(EXAMPLES) >= 2
+    assert (cfg.search is not None) != (cfg.refine is not None)                           # each example runs one engine
+    assert len(cfg.sample) == 1 and len(cfg.sample[0].edge) == 1 and cfg.moves.hops is None
+    assert len(EXAMPLES) >= 3 and any(C.RmcConfig.model_validate(tomllib.loads(q.read_text())).refine is not None for q in EXAMPLES)
 
 
 def test_the_simplest_case_one_sample_one_edge_no_moves(tmp_path):

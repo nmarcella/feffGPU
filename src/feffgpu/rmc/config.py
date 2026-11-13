@@ -64,9 +64,13 @@ class EdgeSettings(_Model):
     criteria_rule: Literal["feff", "evax"] = Field("feff", description="'feff': every path of each structure as it is, judged alone by FEFF's "
                                                    "plane-wave importance relative to the shortest single-scattering path (what FEFF's path finder "
                                                    "does on a structure without symmetry); the paths are found again every paths_every generations. "
-                                                   "'evax': EvAX's rule: the paths are chosen once on the start lattice; all paths of the same "
-                                                   "geometry form a type, and a type is kept when the size of its signal on the lattice is at least "
-                                                   "criteria percent of the size of the lattice's whole spectrum. Not with exchanges or hops.")
+                                                   "'evax': EvAX's rule: the paths are chosen once on the start lattice; paths of like "
+                                                   "geometry form groups as in EvAX's path finder (see group_tolerance), and a group is kept when "
+                                                   "the size of its signal on the lattice is more than criteria percent of the size of the "
+                                                   "lattice's whole spectrum. Not with exchanges or hops.")
+    group_tolerance: float = Field(0.5, gt=0, description="With criteria_rule = 'evax': two paths belong to one group when their atoms, one by "
+                                                          "one, lie within this distance (A) of each other in EvAX's path coordinates "
+                                                          "[Pathfinder_robustness].")
     multiple_scattering: bool = Field(True, description="False: single scattering only.")
     objective: Literal["r_factor", "wavelet", "cauchy_wavelet"] = Field("r_factor", description="The misfit of this spectrum: xraylarch's R-factor "
                                                                                                 "on chi(R), EvAX's wavelet residual, or xraylarch's "
