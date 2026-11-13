@@ -119,7 +119,8 @@ The tables are generated from the models in `feffgpu/rmc/config.py` by `docs/rmc
 | `window` | table | required | The k window, k weight and R window: { kmin, kmax, dk, kweight, rmin, rmax }. |
 | `rpath` | number | `6.0` | Pair and path cutoff (A): FEFF's RPATH, EvAX's R_max_for_FEFF. The periodic cell must be at least twice as wide. |
 | `nleg` | integer | `4` | Largest number of legs of the scattering paths: 2 (single scattering only), 3 or 4. |
-| `criteria` | number | `2.5` | Importance filter of the multiple-scattering paths, in percent of the strongest single-scattering path (FEFF's plane-wave criterion; EvAX's FEFF_criteria). |
+| `criteria` | number | `2.5` | Importance filter of the multiple-scattering paths, in percent; what it measures is set by criteria_rule (FEFF's CRITERIA, EvAX's FEFF_criteria). |
+| `criteria_rule` | one of "feff", "evax" | `"feff"` | 'feff': every path of each structure as it is, judged alone by FEFF's plane-wave importance relative to the shortest single-scattering path (what FEFF's path finder does on a structure without symmetry); the paths are found again every paths_every generations. 'evax': EvAX's rule: the paths are chosen once on the start lattice; all paths of the same geometry form a type, and a type is kept when the size of its signal on the lattice is at least criteria percent of the size of the lattice's whole spectrum. Not with exchanges or hops. |
 | `multiple_scattering` | true or false | `true` | False: single scattering only. |
 | `objective` | one of "r_factor", "wavelet", "cauchy_wavelet" | `"r_factor"` | The misfit of this spectrum: xraylarch's R-factor on chi(R), EvAX's wavelet residual, or xraylarch's Cauchy wavelet residual. |
 | `wavelet_r0` | number | none | EvAX's R0_for_WT (A) of the 'wavelet' objective; default the middle of the R window. |

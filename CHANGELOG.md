@@ -35,6 +35,10 @@ The first public version: one package with three tools.
   `tools/run_tutorials.py` runs the notebooks and stores their outputs; the extra `feffgpu[notebooks]` installs what
   that needs.
 - How to translate an EvAX parameter file, in "Differences from EvAX".
+- `criteria_rule = "evax"` for an edge of `rmc-exafs`: the multiple-scattering paths are chosen once on the start
+  lattice the way EvAX chooses them (whole types of paths, by the size of their signal relative to the lattice's
+  spectrum), instead of by FEFF's filter on every path of each structure. `feffgpu.exafs.MultipleScattering` has
+  `set_lattice`, the table `types` and `type_signals` for it.
 - A figure of the agreement with FEFF 8.5L for every environment of the validation, by element and edge
   (`docs/validation/agreement_by_element_and_edge.png`, drawn by `tools/plot_validation_agreement.py` from
   `data/validation/agreement.npz`), and tests of the window, the Fourier transform and the R-factor against xraylarch

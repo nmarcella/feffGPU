@@ -27,7 +27,9 @@ difference is listed in [](evax_differences.md) with the switch that restores Ev
    deviation `start_kick`). Atoms that every edge ignores do not move.
 2. With a displacement limit, every atom is put within it (projected).
 3. The paths of every absorber of every state are found (FEFF's path finder with the importance filter `criteria`;
-   FEFF is cited in [](../citing.md)), and every state is evaluated from its own atoms.
+   FEFF is cited in [](../citing.md)), and every state is evaluated from its own atoms. With
+   `criteria_rule = "evax"` the paths are instead chosen once, on the start lattice, by EvAX's rule
+   ([](evax_differences.md)); every state then has the same list, and nothing is found again later.
 4. The scale of the gradient steps (if any) is set so that the largest force of the misfit on an atom of state 0 is
    `gradient_force` (eV/Å). A continued run keeps the scale of its first run.
 

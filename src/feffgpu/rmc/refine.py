@@ -60,6 +60,12 @@ class GpuRmc:
         Stiffness of the hard core (eV/A^2).
     ms : bool
         False: single scattering only.
+    criteria_rule : str
+        ``"feff"``: the multiple-scattering paths are chosen by FEFF's path finder on the structure as it is, again
+        every ``refresh_every`` steps. ``"evax"``: they are chosen once on the lattice ``sites`` by EvAX's rule
+        (``feffgpu.exafs.MultipleScattering.set_lattice``).
+    sites : array, shape (n, 3), optional
+        The lattice sites of one copy (A), for ``criteria_rule = "evax"``.
     kweight : int
     dk : float
         Sill width of the Hanning window (1/A).
@@ -67,10 +73,14 @@ class GpuRmc:
     """
 
     def __init__(self, phase, k, target, e0, box, window=(3.0, 23.0), r_range=(1.0, 6.0), rmax=7.0, critpw=2.0, chunk=1024,
-                 r_min=2.2, core=20.0, ms=True, kweight=2, dk=1.0, device="cuda"):
+                 r_min=2.2, core=20.0, ms=True, kweight=2, dk=1.0, device="cuda", criteria_rule="feff", sites=None):
         self.pairs = PairTables(phase, k, target, e0, window=window, r_range=r_range, box=box, rmax=rmax, ms=False, chunk=chunk, device=device,
                                 kweight=kweight, dk=dk)
-        self.ms = MultipleScattering(phase, k, e0, box, rmax=rmax, critpw=critpw, chunk=chunk, device=device) if ms else None
+        self.ms = MultipleScattering(phase, k, e0, box, rmax=rmax, critpw=critpw, chunk=chunk, device=device, criteria_rule=criteria_rule) if ms else None
+        if self.ms is not None and criteria_rule == "evax":
+            if sites is None:
+                raise ValueError("criteria_rule = 'evax' chooses the paths on the lattice: give its sites (n, 3)")
+            self.ms.set_lattice(sites, kweight=kweight)
         self.box, self.r_min, self.core = as_cell(box, device), float(r_min), float(core)
         self.device = torch.device(device)
 
@@ -88,7 +98,7 @@ class GpuRmc:
     @torch.no_grad()
     def spectrum_only(self, pos, enumerate_paths=True):
         """The exact spectrum (NK,) (every absorber, every path of the list) of positions (C, n, 3) and its misfit."""
-        pos = torch.as_tensor(np.asarray(pos), device=self.device, dtype=torch.float32)
+        pos = torch.as_tensor(pos if torch.is_tensor(pos) else np.asarray(pos), device=self.device, dtype=torch.float32)
         chi = self.pairs.single_scattering(pos)
         if self.ms is not None:
             if enumerate_paths or self.ms.lists is None:

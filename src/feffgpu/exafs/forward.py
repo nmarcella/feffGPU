@@ -328,37 +328,178 @@ class MultipleScattering:
 
     Any mix of elements: ``ipot`` (n,) gives each atom's scatterer potential (default 1 for all) and ``absorbers``
     (A,) the atoms that absorb (default every atom). ``box`` is a cubic length, a 3 x 3 cell or None.
+
+    Which paths are computed is decided in one of two ways (``criteria_rule``):
+
+    ``"feff"`` (default)
+        FEFF's path finder on the structure as it is: every path is judged alone by FEFF's plane-wave importance,
+        relative to the shortest single-scattering path, and kept from ``critpw`` percent on. The lists are found again
+        whenever ``enumerate`` is called.
+    ``"evax"``
+        EvAX's rule: the paths are chosen once on the lattice sites (``set_lattice``). All paths of the same geometry
+        form a type; a type is kept when the size of its signal on the ideal lattice is at least ``critpw`` percent
+        of the size of the whole spectrum of the ideal lattice. A type is kept or dropped as a whole, for every
+        atom, and ``enumerate`` then returns the same paths whatever the positions.
     """
 
-    def __init__(self, phase, k, e0, box, rmax=7.0, critpw=2.0, chunk=1024, device="cuda", nlegmax=4):
+    def __init__(self, phase, k, e0, box, rmax=7.0, critpw=2.0, chunk=1024, device="cuda", nlegmax=4, criteria_rule="feff"):
+        if criteria_rule not in ("feff", "evax"):
+            raise ValueError(f"criteria_rule must be 'feff' or 'evax' (got {criteria_rule!r})")
         self.full = PathSpectra(phase, k, np.zeros(len(k)), e0, box=box, rmax=rmax, nlegmax=nlegmax, critpw=critpw, chunk=chunk, device=device)
         self.device, self.chunk, self.box = torch.device(device), int(chunk), as_cell(box, device)
         self.NK = len(k)
+        self.k = np.asarray(k, float)
+        self.critpw, self.criteria_rule = float(critpw), criteria_rule
         self.lists, self.rows, self.n_abs = None, None, 0
+        self.lattice, self.types, self.lattice_n = None, [], 0
+
+    # -- EvAX's rule: the paths chosen on the lattice -----------------------------------------------------------------
+    @staticmethod
+    def _type_keys(coords, ipots):
+        """The geometry of every path as integers: the potentials of its scatterers, its leg lengths (0.001 A) and the
+        cosines of its scattering angles (0.001), in the direction of travel given (``fwd``) and in the opposite one
+        (``rev``). Paths with the same key have the same signal on a lattice. Returns fwd, rev (B, m) and the half
+        path lengths (B,)."""
+        nleg = coords.shape[1]
+        closed = torch.cat([coords, coords[:, :1]], 1)
+        legs = closed[:, 1:] - closed[:, :-1]
+        ri = torch.linalg.norm(legs, dim=-1)
+        u = legs / ri.clamp_min(1e-12)[..., None]
+        cosb = (u * torch.roll(u, -1, 1)).sum(-1)                     # the angle at atom j; the last one at the absorber
+        scat = ipots[:, 1:].long()
+        fwd = torch.cat([scat, torch.round(ri * 1000).long(), torch.round(cosb * 1000).long()], 1)
+        rev = torch.cat([scat.flip(1), torch.round(ri.flip(1) * 1000).long(), torch.round(cosb[:, :nleg - 1].flip(1) * 1000).long(),
+                         torch.round(cosb[:, nleg - 1:] * 1000).long()], 1)
+        return fwd, rev, ri.sum(1) / 2
+
+    @torch.no_grad()
+    def set_lattice(self, sites, ipot=None, absorbers=None, kweight=2):
+        """Choose the multiple-scattering paths on the lattice ``sites`` (n, 3) by EvAX's rule (``criteria_rule = "evax"``).
+
+        Every path of every absorber within the cutoff is enumerated on the sites. Paths of the same geometry (the
+        same potentials, leg lengths and scattering angles) form a type; on a lattice they all have the same signal.
+        As in EvAX, the two directions of travel of a path count as two types of half the degeneracy each, unless the
+        path is its own reverse. The importance of a type is the size of its signal on the ideal lattice, degeneracy
+        included, divided by the size of the whole spectrum of the ideal lattice (single and multiple scattering,
+        every candidate path), in percent; the size is the root of the sum over the k grid of ``(k^kweight chi)^2``.
+        Types of at least ``critpw`` percent are kept, each with every one of its paths and with FEFF's degeneracy
+        (both directions).
+
+        ``self.types`` then lists every type from a quarter of the threshold on: ``legs``, ``half_length`` (A),
+        ``degeneracy`` (paths per absorber, both directions), ``directions`` (1 or 2), ``importance`` (percent, per
+        direction), ``potentials`` (of the scatterers, in the order of travel) and ``kept``. Returns the number of
+        paths per number of legs."""
+        dev = self.device
+        sites = torch.as_tensor(np.asarray(sites, float), device=dev, dtype=torch.float32)
+        n = sites.shape[0]
+        ipot = torch.ones(n, dtype=torch.long, device=dev) if ipot is None else torch.as_tensor(ipot, device=dev, dtype=torch.long)
+        absorbers = torch.arange(n, device=dev) if absorbers is None else torch.as_tensor(absorbers, device=dev, dtype=torch.long)
+        A = int(absorbers.shape[0])
+        finder = self.full.finder
+        held, finder.critpw = finder.critpw, 0.0                     # every candidate path, no filter
+        per = {}
+        try:
+            for a in absorbers.tolist():
+                kept, _ = finder.enumerate(sites, self.box, a, ipot)
+                for nleg, (coords, ipots, deg, xp, atoms) in kept.items():
+                    if deg.shape[0]:
+                        g = per.setdefault(nleg, ([], [], [], [], []))
+                        g[0].append(coords); g[1].append(ipots); g[2].append(deg); g[3].append(atoms)
+                        g[4].append(torch.full((deg.shape[0],), a, device=dev, dtype=torch.long))
+        finally:
+            finder.critpw = held
+        kw = torch.as_tensor(self.k, device=dev, dtype=torch.float64) ** int(kweight)
+        total = torch.zeros(self.NK, device=dev, dtype=torch.float64)
+        classes = {}
+        for nleg, g in per.items():
+            coords, ipots, deg, atoms, absr = (torch.cat(v) for v in g)
+            fwd, rev, half = self._type_keys(coords, ipots)
+            differ = fwd != rev
+            first = torch.argmax(differ.int(), 1)
+            rows = torch.arange(fwd.shape[0], device=dev)
+            use_rev = differ.any(1) & (rev[rows, first] < fwd[rows, first])
+            canon = torch.where(use_rev[:, None], rev, fwd)             # the same key for a path and its reverse
+            uniq, inv = torch.unique(canon, dim=0, return_inverse=True)
+            T = uniq.shape[0]
+            rep = torch.full((T,), fwd.shape[0], device=dev, dtype=torch.long).scatter_reduce(0, inv, rows, "amin")
+            D = torch.zeros(T, device=dev, dtype=torch.float64).index_add_(0, inv, deg.double()) / A
+            chi = torch.cat([self.signals(coords[rep[s:s + self.chunk]], ipots[rep[s:s + self.chunk]])[0].double() for s in range(0, T, self.chunk)])
+            total += (D[:, None] * chi).sum(0)
+            classes[nleg] = dict(atoms=atoms, absr=absr, ipots=ipots, deg=deg, inv=inv, D=D, chi=chi, half=half[rep],
+                                 directions=torch.where(differ[rep].any(1), 2, 1), pots=ipots[rep])
+        norm = float(((total * kw) ** 2).sum()) ** 0.5
+        if norm <= 0:
+            raise ValueError("the lattice has no scattering path within the cutoff")
+        self.lattice, self.types, self.lattice_n = {}, [], n
+        for nleg in sorted(classes):
+            c = classes[nleg]
+            size = ((c["chi"] * kw) ** 2).sum(1).sqrt()
+            importance = 100.0 * (c["D"] / c["directions"]) * size / norm
+            keep = importance >= self.critpw
+            if nleg == 2:
+                continue                                              # single scattering is exact for every pair (the pair tables)
+            index = torch.full((keep.shape[0],), -1, device=dev, dtype=torch.long)
+            for t in torch.argsort(c["half"]).tolist():
+                if float(importance[t]) >= 0.25 * self.critpw or bool(keep[t]):
+                    index[t] = len(self.types)                        # the row of this type in self.types
+                    self.types.append(dict(legs=nleg, half_length=float(c["half"][t]), degeneracy=float(c["D"][t]), directions=int(c["directions"][t]),
+                                           importance=float(importance[t]), potentials=[int(v) for v in c["pots"][t].tolist()[1:]], kept=bool(keep[t])))
+            rows = keep[c["inv"]]
+            if bool(rows.any()):
+                self.lattice[nleg] = dict(atoms=c["atoms"][rows], absorber=c["absr"][rows], ipots=c["ipots"][rows], deg=c["deg"][rows],
+                                          type=index[c["inv"]][rows])
+        self._lattice_absorbers = absorbers
+        return {nleg: int(v["atoms"].shape[0]) for nleg, v in self.lattice.items()}
+
+    def _lists_from_lattice(self, C, n):
+        if self.lattice is None:
+            raise RuntimeError("criteria_rule = 'evax' chooses the paths on the lattice: call set_lattice(sites, ...) first")
+        if n != self.lattice_n:
+            raise ValueError(f"the configuration has {n} atoms but the lattice of the paths has {self.lattice_n}")
+        shift = n * torch.arange(C, device=self.device)
+        return {nleg: dict(atoms=(v["atoms"][None] + shift[:, None, None]).reshape(-1, v["atoms"].shape[1]),
+                           absorber=(v["absorber"][None] + shift[:, None]).reshape(-1), ipots=v["ipots"].repeat(C, 1), deg=v["deg"].repeat(C),
+                           type=v["type"].repeat(C)) for nleg, v in self.lattice.items()}
+
+    @torch.no_grad()
+    def type_signals(self, pos_flat):
+        """The mean multiple-scattering signal per absorber of every kept type (``criteria_rule = "evax"``), at the
+        positions ``pos_flat`` (C n, 3): (number of entries of ``self.types``, NK); rows of types that were not kept
+        are zero."""
+        out = torch.zeros(len(self.types), self.NK, device=self.device, dtype=torch.float64)
+        for L in self.lists.values():
+            for s in range(0, L["atoms"].shape[0], self.chunk):
+                chi, _ = self.path_signals(pos_flat, L, s, s + self.chunk)
+                out.index_add_(0, L["type"][s:s + self.chunk], (chi * L["deg"][s:s + self.chunk, None]).double())
+        return out / max(self.n_abs, 1)
 
     def enumerate(self, pos, ipot=None, absorbers=None):
         """Find the paths of every absorber of every copy of ``pos`` (C, n, 3).
 
         Atom indices are global (copy c, atom i -> c n + i). Row ``c A + j`` holds absorber j of copy c; ``row_of``
         maps a global atom index to its row (-1: not an absorber) and ``abs_atoms`` a row to its global atom index.
-        Returns the number of paths per number of legs."""
+        Returns the number of paths per number of legs. With ``criteria_rule = "evax"`` the paths are those chosen on
+        the lattice (``set_lattice``), whatever the positions."""
         pos = torch.as_tensor(pos, device=self.device, dtype=torch.float32)
         C, n, _ = pos.shape
         ipot = torch.ones(n, dtype=torch.long, device=self.device) if ipot is None else torch.as_tensor(ipot, device=self.device, dtype=torch.long)
         absorbers = torch.arange(n, device=self.device) if absorbers is None else torch.as_tensor(absorbers, device=self.device, dtype=torch.long)
         A = int(absorbers.shape[0])
-        parts = {}
-        for c in range(C):
-            for a in absorbers.tolist():
-                kept, _ = self.full.finder.enumerate(pos[c], self.box, a, ipot)
-                for nleg in (3, 4):
-                    if nleg not in kept or kept[nleg][0].shape[0] == 0:
-                        continue
-                    coords, ipots, deg, xp, atoms = kept[nleg]
-                    g = parts.setdefault(nleg, ([], [], [], []))
-                    g[0].append(atoms + c * n); g[1].append(torch.full((atoms.shape[0],), a + c * n, device=self.device, dtype=torch.long))
-                    g[2].append(ipots); g[3].append(deg)
-        self.lists = {nleg: dict(atoms=torch.cat(g[0]), absorber=torch.cat(g[1]), ipots=torch.cat(g[2]), deg=torch.cat(g[3])) for nleg, g in parts.items()}
+        if self.criteria_rule == "evax":
+            self.lists = self._lists_from_lattice(C, n)
+        else:
+            parts = {}
+            for c in range(C):
+                for a in absorbers.tolist():
+                    kept, _ = self.full.finder.enumerate(pos[c], self.box, a, ipot)
+                    for nleg in (3, 4):
+                        if nleg not in kept or kept[nleg][0].shape[0] == 0:
+                            continue
+                        coords, ipots, deg, xp, atoms = kept[nleg]
+                        g = parts.setdefault(nleg, ([], [], [], []))
+                        g[0].append(atoms + c * n); g[1].append(torch.full((atoms.shape[0],), a + c * n, device=self.device, dtype=torch.long))
+                        g[2].append(ipots); g[3].append(deg)
+            self.lists = {nleg: dict(atoms=torch.cat(g[0]), absorber=torch.cat(g[1]), ipots=torch.cat(g[2]), deg=torch.cat(g[3])) for nleg, g in parts.items()}
         self.C, self.n, self.A, self.n_abs = C, n, A, C * A
         self.abs_atoms = (absorbers[None, :] + n * torch.arange(C, device=self.device)[:, None]).reshape(-1)
         self.row_of = torch.full((C * n,), -1, device=self.device, dtype=torch.long)

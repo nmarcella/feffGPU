@@ -67,7 +67,7 @@ def build_sample(s, cfg: RmcConfig, device="cuda", phases=None):
                                potentials=e.potentials, e0=_start_value(cfg.amplitude.de0, e.name, 0.0), s02=_start_value(cfg.amplitude.s02, e.name, 1.0),
                                rpath=e.rpath, nleg=e.nleg, criteria=e.criteria, multiple_scattering=e.multiple_scattering,
                                pair_windows=e.pair_windows, pair_min=e.pair_min, ignore=e.ignore, objective=e.objective, wavelet_r0=e.wavelet_r0,
-                               device=device))
+                               device=device, criteria_rule=e.criteria_rule))
     return RmcSample(s.label, model, edges)
 
 
@@ -138,7 +138,12 @@ def run_refine(config, log=print):
     t0 = time.time()
     rmc = GpuRmc(phase, k, target, de0, model.cell, window=(e.window.kmin, e.window.kmax), r_range=(e.window.rmin, e.window.rmax), rmax=e.rpath,
                  critpw=e.criteria, r_min=rs.core_distance, core=rs.core_stiffness, ms=e.multiple_scattering and e.nleg >= 3,
-                 kweight=e.window.kweight, dk=e.window.dk, device=device)
+                 kweight=e.window.kweight, dk=e.window.dk, device=device, criteria_rule=e.criteria_rule, sites=model.positions)
+    path_types = [] if rmc.ms is None else rmc.ms.types
+    if rmc.ms is not None and e.criteria_rule == "evax":
+        kept = [t for t in path_types if t["kept"]]
+        log(f"[{s.label}] paths chosen on the start lattice by EvAX's rule ({e.criteria} % of the size of the lattice's spectrum): {len(kept)} "
+            f"types, degeneracy per atom " + ", ".join(f"{n} legs {sum(t['degeneracy'] for t in kept if t['legs'] == n):.0f}" for n in (3, 4)))
     rng = np.random.default_rng(cfg.run.seed)
     start = np.repeat(model.positions[None], rs.copies, 0) + (rng.normal(0.0, rs.start_kick, (rs.copies, model.n, 3)) if rs.start_kick > 0 else 0.0)
     chi0, M0 = rmc.spectrum_only(start)
@@ -152,10 +157,11 @@ def run_refine(config, log=print):
     out.mkdir(parents=True, exist_ok=True)
     summary = {"method": "feffgpu.rmc: gradient refinement", "label": s.label, "edge": e.name, "copies": rs.copies, "atoms": model.n,
                "misfit_start": M0, "misfit_final": M1, "settings": rs.model_dump(), "s02": s02, "de0": de0, "steps_info": rmc.steps_info,
+               "criteria_rule": e.criteria_rule, "path_types": path_types,
                "timing": rmc.timing, "history": history, "seconds": time.time() - t0}
     write_json(out / "refine.json", summary)
-    np.savez_compressed(out / "refine.npz", start=start, positions=final, k=k, target=target, model_start=chi0.cpu().numpy(),
-                        model_final=chi1.cpu().numpy(), cell=model.cell, symbols=model.symbols,
+    np.savez_compressed(out / "refine.npz", start=start, positions=final, sites=model.positions, k=k, target=target,
+                        model_start=chi0.cpu().numpy(), model_final=chi1.cpu().numpy(), cell=model.cell, symbols=model.symbols,
                         window=np.array([e.window.kmin, e.window.kmax, e.window.dk, e.window.kweight, e.window.rmin, e.window.rmax], float))
     from ..config_tools import to_toml
     (Path(cfg.run.output) / "config.resolved.toml").write_text(to_toml(cfg.model_dump(mode="json")))

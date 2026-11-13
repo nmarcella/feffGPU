@@ -91,8 +91,12 @@ class EdgeModel(SpectrumComparison):
     nleg : int
         Largest number of legs of the paths (2: single scattering only, 3 or 4).
     criteria : float
-        FEFF's plane-wave importance filter of the multiple-scattering paths (percent of the strongest
-        single-scattering path).
+        The importance filter of the multiple-scattering paths (percent).
+    criteria_rule : str
+        What ``criteria`` measures. ``"feff"`` (default): FEFF's plane-wave importance of each path of the structure as
+        it is, relative to the shortest single-scattering path. ``"evax"``: EvAX's rule: the size of the signal of each
+        type of path on the lattice, relative to the whole spectrum of the lattice; the paths are then chosen once
+        (``ms.set_lattice``) and kept for every structure.
     multiple_scattering : bool
         False: single scattering only.
     pair_windows : dict, optional
@@ -133,7 +137,7 @@ class EdgeModel(SpectrumComparison):
     def __init__(self, name, k, data, window: FitWindow, phase, symbols, cell, absorber, potentials=None, e0=0.0, s02=1.0,
                  fit_s02=False, fit_e0=False, rpath=6.0, nleg=4, criteria=2.5, multiple_scattering=True, pair_windows=None,
                  pair_min=1.5, table_pad=1.0, chunk=2048, state_chunk=4, ignore=(), objective="r_factor", wavelet_r0=None,
-                 device="cuda"):
+                 device="cuda", criteria_rule="feff"):
         if objective not in OBJECTIVES:
             raise ValueError(f"{name}: unknown objective {objective!r}; use one of {sorted(OBJECTIVES)}")
         if int(nleg) not in (2, 3, 4):
@@ -170,8 +174,9 @@ class EdgeModel(SpectrumComparison):
                                 r_min=pair_min, ms=False, chunk=chunk, device=self.device, kweight=self.kweight, dk=self.dk)
         self.r0, self.dr, self.nr = self.pairs.r0, self.pairs.dr, self.pairs.nr
         use_ms = bool(multiple_scattering) and self.nlegmax >= 3
+        self.criteria_rule = criteria_rule
         self.ms = MultipleScattering(phase, self.k, self.e0, cell, rmax=self.rmax, critpw=self.critpw, chunk=chunk, device=self.device,
-                                     nlegmax=self.nlegmax) if use_ms else None
+                                     nlegmax=self.nlegmax, criteria_rule=criteria_rule) if use_ms else None
         self.objective, self.space = objective, OBJECTIVES[objective]
         if objective != "r_factor":
             self.wavelet = make_wavelet(objective, self.k, window, r0=wavelet_r0, device=self.device)
@@ -306,6 +311,7 @@ class EdgeModel(SpectrumComparison):
 
     def describe(self):
         obj = {"r_factor": "R-factor", "wavelet": "EvAX's wavelet residual", "cauchy_wavelet": "xraylarch's Cauchy wavelet residual"}[self.objective]
-        paths = f"paths to {self.rmax} A, {self.nlegmax} legs, {self.critpw} % filter" if self.ms is not None else f"single scattering to {self.rmax} A"
+        rule = "EvAX's rule on the lattice" if self.criteria_rule == "evax" else "FEFF's rule on each structure"
+        paths = f"paths to {self.rmax} A, {self.nlegmax} legs, {self.critpw} % filter ({rule})" if self.ms is not None else f"single scattering to {self.rmax} A"
         return (super().describe() + f"; {self.nA} {self.absorber} absorbers; {obj}; {paths}; potentials "
                 + ", ".join(f"{el} {ip}" for el, ip in self.ipot_of_symbol.items()) + "; pair types " + ", ".join(repr(t) for t in self.types))

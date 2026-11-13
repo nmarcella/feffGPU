@@ -20,7 +20,7 @@ shift); `objective = "wavelet"` gives EvAX's default fit space.
 | 3 | Several samples | One structure model (or a weighted mixture) against its own spectra; several edges of one sample are native (`Number_of_spectra`). | Several samples in one run, each with its own atoms and spectra; only S0² and the E0 shift connect them. | One shared S0² and E0 shift per edge, measured on several samples. | one `[[sample]]` block |
 | 4 | Spectrum weights | Adapted (`adjust_spectra_weights`): `w = (1/a) / sum(1/a)`, `a` the running mean of the change of the spectrum's residual. | The same rule, with these choices: the residual is the R-factor, not EvAX's square-root form (row 5); all moves of a generation enter the mean before the weights are used (EvAX updates after each state); a move includes the gradient steps and the rearrangements; samples keep equal weights among themselves; the same weights enter the gradient steps and the refit; moves refused by a constraint do not count. | The generation is batched on the GPU; the rest follows from rows 3, 5, 8 and 9. | `adapt_weights = false` gives equal fixed weights; `weights_means_from` restarts the mean (default 0: never, EvAX's rule) |
 | 5 | Fit space and residual | Wavelet space by default (`Space w`), residual the square root of the summed squared difference over the summed squared data; EvAX's own k window. | R space by default with xraylarch's R-factor (the ratio, not its square root) on the complex chi(R) and xraylarch's Hanning window. EvAX's window with `k_min`, `k_max`, taper `w` is exactly the Hanning window with `kmin + w/2`, `kmax - w/2`, `dk = w` (`feffgpu.exafs.evax_window`). | The conventions of xraylarch, Athena and Artemis (the R-factor that users quote). | `objective = "wavelet"` (EvAX's transform; the edges combine as a weighted sum of ratios, not of square roots) |
-| 6 | Multiple scattering | Computed for every state from that state's geometry, through a basis of representative paths renewed every 2 generations (`Update_basis_every_...`). | Computed for every state from its own atoms through its own path lists. The lists hold atom indices, so between two searches the signal follows the atoms exactly; the choice of paths (the importance filter) is renewed every `paths_every` generations, and at once for the absorbers near an atom that changed site. During gradient steps the multiple scattering of the state before the move is held. | Exact paths on the GPU instead of a clustered basis. | `paths_every = 1` renews the choice of paths every generation (no switch for the held signal during gradient steps) |
+| 6 | Multiple scattering | Computed for every state from that state's geometry, through a basis of representative paths renewed every 2 generations (`Update_basis_every_...`). The paths are chosen once on the ideal lattice: all paths of the same geometry form a type, and a type is kept when the size of its signal on the lattice is at least `FEFF_criteria` percent of the size of the lattice's whole spectrum. | Computed for every state from its own atoms through its own path lists; every path of a list is computed exactly. By default (`criteria_rule = "feff"`) the paths are chosen by FEFF's path finder on each state as it is, every path judged alone, and the choice is renewed every `paths_every` generations (at once for the absorbers near an atom that changed site). With `criteria_rule = "evax"` they are chosen once on the start lattice by EvAX's rule (below). During gradient steps the multiple scattering of the state before the move is held. | Exact paths on the GPU instead of a clustered basis; FEFF's rule also works for structures without a lattice. | `criteria_rule = "evax"` (EvAX's choice of paths); `paths_every = 1` renews FEFF's choice every generation (no switch for the held signal during gradient steps) |
 | 7 | Forward-model code | The FEFF executable on clustered paths; potentials computed once. | The GPU rewrite of FEFF 8.5L in this package: every pair exact, every path of the lists exact; potentials computed once (the phase file). Validated against FEFF 8.5L ([](../validation/index.md)). | Speed and exactness. | no switch |
 
 ## The moves and the search
@@ -56,7 +56,8 @@ and compares the results.
 | `File_with_structure`, `Supercell` | `structure`, `format`, `supercell` | EvAX's `.p1` files are VASP structure files with extra columns (`format = "vasp"`). |
 | `File_with_experimental_EXAFS_signal`, `Column_for_k`, `Column_for_chi` | `chi`, `chi_columns` | Columns count from zero here. |
 | `Edge`, `Edge_type` | `absorber`; the `EDGE` card of the input of the phase file | |
-| `R_max_for_FEFF`, `N_legs`, `FEFF_criteria` | `rpath`, `nleg`, `criteria` | `nleg` is at most 4 here. |
+| `R_max_for_FEFF`, `N_legs` | `rpath`, `nleg` | `nleg` is at most 4 here. |
+| `FEFF_criteria` | `criteria` with `criteria_rule = "evax"` | The same number means something else under FEFF's rule: see below. |
 | `r_scf`, `n_scf`, `ca`, `n_mix` | the `SCF` card of the input of the phase file | A negative `r_scf` is not "off": see below. |
 | `S02`, `dE0` | `[amplitude] mode = "fixed"`, `s02`, `de0 = -dE0` | The sign changes: see below. |
 | `Space w`, `k_min`, `k_max`, `k_power`, `R_min`, `R_max`, `R0_for_WT` | `objective = "wavelet"`, `wavelet_r0`, `window = { kmin, kmax, dk = 0, kweight, rmin, rmax }` | In wavelet space EvAX uses the range from `k_min` to `k_max` without a taper: `dk = 0`. |
@@ -64,7 +65,18 @@ and compares the results.
 | `Potential_type box`, `Maximal_displacement` | `[constraints] max_displacement` | |
 | `Maximal_number_of_clusters`, `Clustering_precision`, `Expansion_accuracy`, `Pathfinder_robustness` | none | Every path of every atom is computed (row 6). |
 
-Three points need care:
+Four points need care:
+
+- **`FEFF_criteria` is not FEFF's path filter.** EvAX chooses its paths once, on the ideal lattice. All paths of the
+  same geometry form a type (a path and its reverse count as two types of half the degeneracy each, unless the path
+  is its own reverse). EvAX computes the signal of every type on the lattice and keeps the type when the size of that
+  signal, the root of the sum over k of `(k^k_power chi)^2`, is at least `FEFF_criteria` percent of the size of the
+  lattice's whole spectrum. `criteria_rule = "evax"` does the same, and keeps a type with every one of its paths
+  and FEFF's degeneracy. Under the default, `criteria_rule = "feff"`, the same number is applied to every single
+  path of the disordered structure by FEFF's plane-wave estimate, relative to one nearest-neighbor path. That keeps
+  fewer and other paths: for fcc copper to 6.5 Å at 1.5 %, about 250 paths per atom instead of 360. The spectrum
+  of a given structure then differs between the two programs by an R-factor of several 0.001. The log of a run
+  names the number of types and paths kept, and `refine.json` lists the types (`path_types`).
 
 - **A negative `r_scf` means that EvAX chooses the radius** of the self-consistency loop of the potentials. It takes
   the nearest-neighbor distance d1, then the first neighbor distance at least 1 Å longer than d1, then the first
@@ -78,7 +90,11 @@ Three points need care:
   carries the factor `(k'/k)^k_power` relative to shifted data. `feffgpu.exafs.shifted_target` gives the shifted
   data without this factor.
 - **The energy shift belongs to the potentials it was found with.** With other potentials (another radius of the
-  self-consistency loop, another cluster) it is another number; `[amplitude] mode = "fit"` finds it.
+  self-consistency loop, another cluster) it is another number; `[amplitude] mode = "fit"` finds it. EvAX runs the
+  FEFF 8.5L program; this package reproduces the open-source edition of FEFF 8.5L. For the same input the two give
+  the same scattering (to 2e-8 in a first-shell spectrum of copper once the energy origins are aligned) but not
+  quite the same Fermi level: for fcc copper with EvAX's settings it lies 0.13 eV lower here, so the same alignment
+  is `de0 = -dE0 - 0.13`.
 
 A literal translation of a typical EvAX run (tens of states, thousands of generations, no gradient steps) costs
 what it costs in EvAX: every state's multiple scattering is computed in every generation. `gradient_steps` and, for

@@ -18,6 +18,12 @@ matches the target in R space:
   for every absorber at every step, comes from a rotating subset of `ms_absorbers` absorbers accumulated into a running
   average whose memory is `ms_memory` cycles through all absorbers, after one exact pass at the start: in expectation
   the exact gradient.
+- **Which paths.** By default FEFF's filter is applied to every path of the structure as it is
+  (`criteria_rule = "feff"`), again every `refresh_every` steps. With `criteria_rule = "evax"` in the edge block the
+  paths are chosen once on the start lattice by EvAX's rule ([](evax_differences.md)): whole types of paths, by the
+  size of their signal. The list is then the same for every atom and every step, which also removes the small jumps
+  of the misfit when paths enter or leave the list. For a structure that starts as a crystal this is the better
+  choice.
 - **The step** (`optimizer = "sgd"`): steepest descent with the step normalized to a root-mean-square move of
   `step_size` per atom, decaying on a cosine to `step_size x final_fraction`; a step is taken only if the misfit
   (single scattering live, multiple scattering as held) does not rise, else it halves and is tried again. Adam

@@ -59,8 +59,14 @@ class EdgeSettings(_Model):
     rpath: float = Field(6.0, gt=0, description="Pair and path cutoff (A): FEFF's RPATH, EvAX's R_max_for_FEFF. The periodic cell must be at least "
                                                 "twice as wide.")
     nleg: int = Field(4, ge=2, le=4, description="Largest number of legs of the scattering paths: 2 (single scattering only), 3 or 4.")
-    criteria: float = Field(2.5, ge=0, description="Importance filter of the multiple-scattering paths, in percent of the strongest "
-                                                   "single-scattering path (FEFF's plane-wave criterion; EvAX's FEFF_criteria).")
+    criteria: float = Field(2.5, ge=0, description="Importance filter of the multiple-scattering paths, in percent; what it measures is set "
+                                                   "by criteria_rule (FEFF's CRITERIA, EvAX's FEFF_criteria).")
+    criteria_rule: Literal["feff", "evax"] = Field("feff", description="'feff': every path of each structure as it is, judged alone by FEFF's "
+                                                   "plane-wave importance relative to the shortest single-scattering path (what FEFF's path finder "
+                                                   "does on a structure without symmetry); the paths are found again every paths_every generations. "
+                                                   "'evax': EvAX's rule: the paths are chosen once on the start lattice; all paths of the same "
+                                                   "geometry form a type, and a type is kept when the size of its signal on the lattice is at least "
+                                                   "criteria percent of the size of the lattice's whole spectrum. Not with exchanges or hops.")
     multiple_scattering: bool = Field(True, description="False: single scattering only.")
     objective: Literal["r_factor", "wavelet", "cauchy_wavelet"] = Field("r_factor", description="The misfit of this spectrum: xraylarch's R-factor "
                                                                                                 "on chi(R), EvAX's wavelet residual, or xraylarch's "
@@ -286,6 +292,12 @@ class RmcConfig(_Model):
                 unknown = sorted(set(val) - set(absorber_of))
                 if unknown:
                     raise ValueError(f"amplitude.{key}: no spectrum is named {unknown}")
+        if self.moves.exchange or self.moves.hops is not None:
+            for i, s in enumerate(self.sample):
+                for j, e in enumerate(s.edge):
+                    if e.criteria_rule == "evax":
+                        raise ValueError(f"sample.{i}.edge.{j}.criteria_rule: 'evax' chooses the paths once on the start lattice, where every "
+                                         "atom keeps its site; with exchanges or hops ([moves]) use 'feff'")
         for i, s in enumerate(self.sample):
             if s.hop_sites is not None and self.moves.hops is None:
                 raise ValueError(f"sample.{i}.hop_sites: hop sites need a [moves.hops] section (the element that hops)")

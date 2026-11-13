@@ -126,7 +126,7 @@ def test_the_notebook_for_your_own_trajectory_runs_on_the_example():
 def test_the_evax_notebook_runs_when_the_example_files_are_there(monkeypatch):
     """The RMC notebook works on the files of an EvAX example, which the repository does not hold: the test runs
     only when FEFFGPU_EVAX_EXAMPLE names the folder with in/ and out/. With them, the two programs must agree on
-    EvAX's misfit and on the spectrum of EvAX's final atoms."""
+    EvAX's misfit, on the list of scattering paths and on the spectrum of EvAX's final atoms."""
     import os
     if not os.environ.get("FEFFGPU_EVAX_EXAMPLE"):
         pytest.skip("needs the files of the EvAX example (set FEFFGPU_EVAX_EXAMPLE)")
@@ -138,9 +138,13 @@ def test_the_evax_notebook_runs_when_the_example_files_are_there(monkeypatch):
     from_files = float(re.search(r"from EvAX's own wavelet files:\s+([0-9.]+)", printed).group(1))
     ours = float(re.search(r"through this package's objective:\s+([0-9.]+)", printed).group(1))
     assert abs(ours / from_files - 1.0) < 0.03                      # the same misfit
-    same_atoms = float(re.search(r"same atoms, all paths:\s+([0-9.e+-]+)", printed).group(1))
-    single = float(re.search(r"single scattering only:\s+([0-9.e+-]+)", printed).group(1))
-    assert same_atoms < 0.02 and single < 0.005                      # the same spectrum for the same atoms
+    table = re.findall(r"^\s+(\d)\s+(\d\.\d\d)\s+(\d+)\s+(\d+)$", printed, flags=re.M)        # legs, half length, EvAX, this package
+    assert len(table) >= 8 and all(int(mine) in (int(theirs), 2 * int(theirs)) for _, _, theirs, mine in table)   # the same paths
+    single = float(re.search(r"single scattering:\s+([0-9.e+-]+)", printed).group(1))
+    feff_count = float(re.search(r"FEFF's degeneracies:\s+([0-9.e+-]+)", printed).group(1))
+    evax_count = float(re.search(r"degeneracies of EvAX's list:\s+([0-9.e+-]+)", printed).group(1))
+    rest = float(re.search(r"energy shift of [0-9.+-]+ eV:\s+([0-9.e+-]+)", printed).group(1))
+    assert single < 0.005 and evax_count < feff_count < 0.006 and rest < 0.0015      # the same spectrum for the same atoms
     assert "/home/" not in printed
 
 

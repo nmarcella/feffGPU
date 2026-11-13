@@ -152,9 +152,12 @@ every R-factor recomputed from this file uses the stored window of its edge.
 ## The gradient refinement (`rmc-exafs refine`)
 
 `<output>/<label>/refine.json`: `method`, `label`, `edge`, `copies`, `atoms`, `misfit_start`, `misfit_final`,
-`settings` (the `[refine]` keys), `s02`, `de0`, `steps_info` (`halvings`, `rejected_steps`, `final_step_size`), `timing`
-(seconds per part), `history` (one record per log: `step`, `misfit`, `core`, `rms_move`, `max_move`, `step_size`,
-`halvings`, `seconds`), `seconds`.
+`settings` (the `[refine]` keys), `s02`, `de0`, `steps_info` (`halvings`, `rejected_steps`, `final_step_size`),
+`criteria_rule`, `path_types` (with `criteria_rule = "evax"`: every type of multiple-scattering path from a quarter
+of the threshold on, with `legs`, `half_length` in Å, `degeneracy` per atom, `directions`, `importance` in percent,
+`potentials` and `kept`), `timing` (seconds per part), `history` (one record per log: `step`, `misfit`, `core`,
+`rms_move`, `max_move`, `step_size`, `halvings`, `seconds`), `seconds`.
 
-`<output>/<label>/refine.npz`: `start` and `positions` (copies, n, 3), `k`, `target` (the data divided by S0²),
-`model_start` and `model_final` (the calculated spectra at the E0 shift), `cell`, `symbols`, `window`.
+`<output>/<label>/refine.npz`: `start` and `positions` (copies, n, 3), `sites` (n, 3: the start lattice), `k`,
+`target` (the data divided by S0²), `model_start` and `model_final` (the calculated spectra at the E0 shift), `cell`,
+`symbols`, `window`.

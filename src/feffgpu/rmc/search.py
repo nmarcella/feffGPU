@@ -211,6 +211,12 @@ class EvaxSearch:
         q.site_ids = torch.as_tensor(model.sites.ids, device=dev, dtype=torch.long)
         q.n_ids = int(model.sites.n_ids)
         q.cell = e0.cell
+        for e in q.edges:                                            # EvAX's rule: the paths are chosen once, on the start lattice
+            if e.ms is not None and e.criteria_rule == "evax":
+                counts = e.ms.set_lattice(torch.as_tensor(model.positions, dtype=torch.float32)[e.keep.cpu()], e.ipot[e.keep], e.abs_keep, kweight=e.kweight)
+                kept = [t for t in e.ms.types if t["kept"]]
+                self.log(f"[{q.label}]   {e.name}: paths chosen on the start lattice by EvAX's rule ({e.critpw} % of the size of the lattice's "
+                         f"spectrum): {len(kept)} types, {counts} paths")
         q.paths = [StatePaths(e) for e in q.edges]
         q.history, q.refits = [], []
         q.counts_total = {"accepted_worse": 0, "children_rejected": 0, "refused": 0}

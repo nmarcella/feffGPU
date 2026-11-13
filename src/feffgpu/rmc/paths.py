@@ -1,5 +1,8 @@
 """The multiple-scattering path lists of every state of a population, each state's paths from its own atoms.
 
+With ``criteria_rule = "evax"`` every state has the same list, the paths chosen on the lattice
+(``feffgpu.exafs.MultipleScattering.set_lattice``); the signals are still computed from each state's own atoms.
+
 A path list holds atom indices, not coordinates: ``{number of legs: {atoms (B, legs - 1), absorber (B,), ipots
 (B, legs), deg (B,)}}`` with indices in the edge's atom order (ignored elements left out). The signal of a list is
 always computed from the current atoms, so between two searches of the path finder the multiple scattering still
@@ -39,6 +42,12 @@ class StatePaths:
         indices in the edge's atom order), the paths of three and four legs after the importance filter."""
         if self.ms is None:
             return {}
+        if self.ms.criteria_rule == "evax":                          # the paths of the lattice, whatever the positions
+            L = {nleg: {key: v[key] for key in ("atoms", "absorber", "ipots", "deg")} for nleg, v in self.ms.lattice.items()}
+            if absorbers is None:
+                return L
+            chosen = torch.as_tensor(absorbers, device=self.device, dtype=torch.long)
+            return {nleg: {key: val[torch.isin(v["absorber"], chosen)] for key, val in v.items()} for nleg, v in L.items()}
         p = torch.as_tensor(pos, device=self.device, dtype=torch.float32)[self.keep]
         absorbers = self.abs_keep.tolist() if absorbers is None else [int(a) for a in torch.as_tensor(absorbers).tolist()]
         parts = {}
