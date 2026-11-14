@@ -88,6 +88,22 @@ regenerates it.
 - The description says what changed, why, and how it was tested (with the GPU or without).
 - By contributing you agree that your contribution is released under the MIT License of this project.
 
+## Versions and releases
+
+The version number is not written in any file: it comes from git when the package is built or installed
+(`[tool.setuptools_scm]` in `pyproject.toml`). At a release tag `v0.3.0` the version is `0.3.0`; seven commits later
+it is `0.3.1.dev7+g<commit>`. So every merged pull request has its own version, and
+`pip install --upgrade git+https://github.com/nmarcella/feffGPU.git` installs it.
+
+A release, by a maintainer:
+
+1. Give the section of `CHANGELOG.md` its version and date, and set `version` and `date-released` in `CITATION.cff`.
+2. On GitHub, publish a release with a new tag `vX.Y.Z` on `main`. The workflow `release.yml` builds the package,
+   checks that the built version is the tag, and uploads it to PyPI through PyPI's trusted publishing (no token).
+3. Read the Docs builds the documentation of every push by itself.
+
+An upload to PyPI cannot be replaced: a mistake needs a new version number.
+
 ## Agents
 
 If you work with a coding agent, point it at `AGENTS.md`.

@@ -12,7 +12,7 @@ gives all three:
 EXAFS is the extended X-ray absorption fine structure; chi(k) is the EXAFS signal as a function of the
 photoelectron wave number k; FEFF is the program that calculates chi(k) from atom positions.
 
-**Documentation:** <https://feffgpu.readthedocs.io> (sources in [`docs/`](docs/)).
+**Documentation:** <https://feffgpu.readthedocs.io> (sources in [`docs/`](https://github.com/nmarcella/feffGPU/tree/main/docs)).
 
 ## The same output as FEFF 8.5L
 
@@ -24,7 +24,7 @@ two spectra, divided by the squared transform of FEFF's.
 267 cases. In the periodic table below, the three squares of an element are its three edges, colored by the R-factor.
 The inset plots every point of every `feffgpu` spectrum against FEFF's.
 
-![feffgpu against FEFF 8.5L for the K, L3 and M5 edge of every element: a periodic table colored by the R-factor between the two codes, the spectra of one code against the other, and the R-factor against the atomic number](docs/validation/agreement_all_elements.png)
+![feffgpu against FEFF 8.5L for the K, L3 and M5 edge of every element: a periodic table colored by the R-factor between the two codes, the spectra of one code against the other, and the R-factor against the atomic number](https://raw.githubusercontent.com/nmarcella/feffGPU/main/docs/validation/agreement_all_elements.png)
 
 - The median R-factor between the two codes is 1.7e-6. 264 of the 267 cases are below 2e-5, the limit that the
   regression tests enforce; the three above it are at 1.0e-4, 4.6e-5 and 2.5e-5.
@@ -32,13 +32,13 @@ The inset plots every point of every `feffgpu` spectrum against FEFF's.
 - The number of paths, weighted by degeneracy, is identical in 252 cases. In the other 15 the two codes differ by a few
   three- and four-leg paths that sit at the threshold of the path filter, never in the single-scattering paths.
 - The recipe, the two spectra of every case drawn over each other, and the table are in
-  [docs/validation/elements.md](docs/validation/elements.md).
+  [docs/validation/elements.md](https://github.com/nmarcella/feffGPU/blob/main/docs/validation/elements.md).
 
 **Mixed environments.** 34 environments drawn at random over elements, edges, structures and input cards, one panel
 per absorbing element and edge, with FEFF 8.5L in black and `feffgpu` in blue on top, and above them the R-factor
 between the two codes.
 
-![feffgpu against FEFF 8.5L for 34 random environments: the R-factor between the two codes per element and edge, and the two spectra of every environment drawn over each other](docs/validation/agreement_by_element_and_edge.png)
+![feffgpu against FEFF 8.5L for 34 random environments: the R-factor between the two codes per element and edge, and the two spectra of every environment drawn over each other](https://raw.githubusercontent.com/nmarcella/feffGPU/main/docs/validation/agreement_by_element_and_edge.png)
 
 - 24 absorbing elements from C to Au; K, L2, L3 and M5 edges; lattices and random packings with disorder, vacancies,
   strain and surfaces; self-consistent and overlapped potentials; a range of FEFF input cards.
@@ -47,7 +47,7 @@ between the two codes.
 - The number of paths, weighted by degeneracy, is identical in 29 of the 34. In the other 5 the two codes differ by
   one path that sits at the importance threshold. The Fermi levels agree to 2e-6 hartree or better.
 
-The full table is in [docs/validation/random_environments.md](docs/validation/random_environments.md). The spectra
+The full table is in [docs/validation/random_environments.md](https://github.com/nmarcella/feffGPU/blob/main/docs/validation/random_environments.md). The spectra
 behind both figures are in `data/validation/`, and `tools/plot_validation_elements.py` and
 `tools/plot_validation_agreement.py` redraw them.
 
@@ -76,7 +76,7 @@ When you use RMC-EXAFS, EvAX:
 - For the wavelet residual: J. Timoshenko and A. Kuzmin, Comput. Phys. Commun. **180**, 920–925 (2009).
   https://doi.org/10.1016/j.cpc.2008.12.020
 
-A citation entry for this package is in [CITATION.cff](CITATION.cff). The full list with titles is in the
+A citation entry for this package is in [CITATION.cff](https://github.com/nmarcella/feffGPU/blob/main/CITATION.cff). The full list with titles is in the
 documentation page "How to cite".
 
 ## Install
@@ -86,7 +86,8 @@ Requirements: Linux, Python 3.11 or newer, an NVIDIA GPU with a CUDA build of Py
 ```bash
 python -m venv venv && source venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cu126     # the CUDA build that matches your driver
-pip install feffgpu                                                       # or: pip install git+https://github.com/nmarcella/feffGPU.git
+pip install feffgpu                                                       # a release; or the current repository:
+# pip install --upgrade git+https://github.com/nmarcella/feffGPU.git
 feffgpu doctor                                                            # check the installation
 ```
 
@@ -132,7 +133,7 @@ rmc-exafs from-evax start.dat my_run      # the same problem as an EvAX calculat
 
 `md-exafs example` and `rmc-exafs example` list commented example configurations; `md-exafs schema` and
 `rmc-exafs schema` print every key. Examples that generate their own synthetic inputs are in
-[`examples/`](examples/). The quick starts are in the documentation.
+[`examples/`](https://github.com/nmarcella/feffGPU/tree/main/examples). The quick starts are in the documentation.
 
 ## RMC-EXAFS: commissioning against EvAX (underway)
 
@@ -149,7 +150,7 @@ paths, and compared with EvAX's output files. EvAX itself is not run. The misfit
 | Au147 particle, Au L3 edge | 147 | 31 h | 7 min | 0.176 | 0.170 |
 | PdAu particle, Pd K and Au L3 edges in one fit | 336 | 26 h | 38 min | 0.109 and 0.174 | 0.101 and 0.174 |
 
-![Five calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](docs/rmc/commissioning_evax.png)
+![Five calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](https://raw.githubusercontent.com/nmarcella/feffGPU/main/docs/rmc/commissioning_evax.png)
 
 Black: EvAX's target. Orange: EvAX's fit and final atoms. Blue: this package's fit and final atoms.
 
@@ -165,18 +166,18 @@ Black: EvAX's target. Orange: EvAX's fit and final atoms. Blue: this package's f
 
 The full tables, what was checked underneath (the forward model against FEFF itself on EvAX's atoms, the lists of
 paths) and the sources of the calculations are in
-[docs/rmc/commissioning.md](docs/rmc/commissioning.md). When you use RMC-EXAFS, cite EvAX ([docs/citing.md](docs/citing.md)).
+[docs/rmc/commissioning.md](https://github.com/nmarcella/feffGPU/blob/main/docs/rmc/commissioning.md). When you use RMC-EXAFS, cite EvAX ([docs/citing.md](https://github.com/nmarcella/feffGPU/blob/main/docs/citing.md)).
 
 ## Tutorials
 
 Notebooks that run on Google Colab (which provides NVIDIA GPUs) or on your own computer, stored with their outputs
-so that they can be read here: [`tutorials/`](tutorials/).
+so that they can be read here: [`tutorials/`](https://github.com/nmarcella/feffGPU/tree/main/tutorials).
 
 | | |
 |---|---|
-| [MD-EXAFS from a trajectory: a worked example with iron](tutorials/01_md_exafs_iron.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/01_md_exafs_iron.ipynb) |
-| [MD-EXAFS with your own trajectory](tutorials/02_md_exafs_your_trajectory.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/02_md_exafs_your_trajectory.ipynb) |
-| [RMC-EXAFS from an EvAX project: copper foil](tutorials/03_rmc_exafs_from_evax.ipynb) (needs the files of the EvAX example) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/03_rmc_exafs_from_evax.ipynb) |
+| [MD-EXAFS from a trajectory: a worked example with iron](https://github.com/nmarcella/feffGPU/blob/main/tutorials/01_md_exafs_iron.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/01_md_exafs_iron.ipynb) |
+| [MD-EXAFS with your own trajectory](https://github.com/nmarcella/feffGPU/blob/main/tutorials/02_md_exafs_your_trajectory.ipynb) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/02_md_exafs_your_trajectory.ipynb) |
+| [RMC-EXAFS from an EvAX project: copper foil](https://github.com/nmarcella/feffGPU/blob/main/tutorials/03_rmc_exafs_from_evax.ipynb) (needs the files of the EvAX example) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nmarcella/feffGPU/blob/main/tutorials/03_rmc_exafs_from_evax.ipynb) |
 
 The data of the MD-EXAFS tutorials are synthetic: a short trajectory of bcc iron made with springs and a thermostat,
 and a spectrum with a known S0² and E0 shift put in. The RMC-EXAFS tutorial works on the input and output files of
@@ -211,10 +212,10 @@ data/validation/    four random environments and two cases with long paths, with
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md); agents see [AGENTS.md](AGENTS.md).
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/nmarcella/feffGPU/blob/main/CONTRIBUTING.md); agents see [AGENTS.md](https://github.com/nmarcella/feffGPU/blob/main/AGENTS.md).
 
 ## License
 
-MIT (see [LICENSE](LICENSE)). `feffgpu` is based on FEFF 8.5L, copyright University of Washington; the notices that
-its license requires, and the acknowledgments of EvAX and of the original MD-EXAFS, are in [NOTICE](NOTICE). FEFF's
+MIT (see [LICENSE](https://github.com/nmarcella/feffGPU/blob/main/LICENSE)). `feffgpu` is based on FEFF 8.5L, copyright University of Washington; the notices that
+its license requires, and the acknowledgments of EvAX and of the original MD-EXAFS, are in [NOTICE](https://github.com/nmarcella/feffGPU/blob/main/NOTICE). FEFF's
 own source code is not included.

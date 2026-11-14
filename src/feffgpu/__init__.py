@@ -23,6 +23,9 @@ from .stage import GPUPathStage
 from .cell import as_cell, wrap, min_width
 from .compare import r_factor
 
-__version__ = "0.2.0"
+try:                                   # written when the package is built or installed (pyproject.toml, [tool.setuptools_scm])
+    from ._version import __version__
+except ImportError:                    # a source tree that was never installed
+    __version__ = "0+unknown"
 __all__ = ["run", "read_feff_inp", "PhaseData", "PotData", "read_phase_pad", "read_pot_pad", "load_phase", "BOHR", "HART", "potentials",
            "GPUPathFinder", "GPUPathStage", "as_cell", "wrap", "min_width", "r_factor"]  # the phase-shift stage: feffgpu.xsph.xsph

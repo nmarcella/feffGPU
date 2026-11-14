@@ -21,7 +21,19 @@ pip install feffgpu
 The table at <https://pytorch.org/get-started/locally/> lists the index URL for each CUDA version. `nvidia-smi`
 shows the driver version and the highest CUDA version it supports.
 
-From a source checkout, for development:
+**The development version.** Releases on PyPI are numbered versions. To use the current state of the repository
+instead, install from GitHub; the same command with `--upgrade` later installs whatever has been merged since:
+
+```bash
+pip install git+https://github.com/nmarcella/feffGPU.git
+pip install --upgrade git+https://github.com/nmarcella/feffGPU.git      # later: the newest commit
+feffgpu --version                                                         # for example 0.2.1.dev7+g1a2b3c4
+```
+
+Every commit has its own version number (the last release, the number of commits since, and the commit), which is
+what lets `--upgrade` see that there is something new; pip never updates on its own.
+
+From a source checkout, for development; `git pull` then updates the installed package:
 
 ```bash
 git clone https://github.com/nmarcella/feffGPU.git

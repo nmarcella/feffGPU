@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "feffgpu"
-version = "0.2.0"
+dynamic = ["version"]          # from git: the tag of a release (v0.2.0 -> 0.2.0), or the next version with the number of commits since
 description = "FEFF 8.5L's EXAFS pipeline on NVIDIA GPUs in PyTorch, with MD-EXAFS and RMC-EXAFS built on it"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -53,6 +53,12 @@ feffgpu-mcp = "feffgpu.mcp.server:main"
 Repository = "https://github.com/nmarcella/feffGPU"
 Documentation = "https://feffgpu.readthedocs.io"
 Issues = "https://github.com/nmarcella/feffGPU/issues"
+
+[tool.setuptools_scm]
+# Every commit has its own version, so `pip install --upgrade "feffgpu @ git+https://github.com/nmarcella/feffGPU.git"`
+# installs each new commit of main (pip keeps an installed package whose version number has not changed).
+version_file = "src/feffgpu/_version.py"
+fallback_version = "0.1.0"     # only without any release tag or git information; below the first release on purpose
 
 [tool.setuptools.packages.find]
 where = ["src"]

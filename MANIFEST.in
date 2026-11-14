@@ -1,0 +1,12 @@
+# The source distribution holds the package and its metadata. Everything else in the repository (documentation,
+# tutorials, validation data, examples, tools, tests) stays on GitHub: with it the archive would come close to PyPI's
+# size limit of 100 MB per file (the free-atom table inside the package is 78 MB).
+prune docs
+prune tutorials
+prune data
+prune examples
+prune tools
+prune fortran
+prune tests
+prune .github
+exclude .gitignore .gitattributes .readthedocs.yaml AGENTS.md CLAUDE.md

@@ -81,6 +81,11 @@ The first public version: one package with three tools.
 
 ### Changed
 
+- The version number comes from git (`setuptools-scm`): a release tag gives the release's version, and every later
+  commit has its own development version, so that `pip install --upgrade git+https://github.com/nmarcella/feffGPU.git`
+  installs each new commit (pip keeps an installed package whose version has not changed). The source distribution
+  holds the package only; the links of the README are absolute, so that the page on PyPI shows its figures.
+
 - The free-atom table ships inside the package (81 MB, packed without loss; the arrays are identical byte for byte to
   the table of version 0.1.0). Nothing has to be downloaded after `pip install`, and the commands `feffgpu fetch-atoms`
   and `feffgpu-fetch-atoms` are gone. `FEFFGPU_ATOMS` still points the package at another table.

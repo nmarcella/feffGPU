@@ -18,6 +18,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the version comes from git
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -25,4 +27,9 @@ jobs:
           python -m pip install --upgrade pip build twine
           python -m build
           twine check dist/*
+      - name: The version of the built files must be the release's tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ls dist
+          test -f "dist/feffgpu-${tag}.tar.gz" && test -f "dist/feffgpu-${tag}-py3-none-any.whl"
       - uses: pypa/gh-action-pypi-publish@release/v1

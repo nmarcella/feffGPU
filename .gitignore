@@ -31,3 +31,5 @@ tutorials/cu_evax/
 tutorials/evax_example/
 tutorials/*.zip
 .ipynb_checkpoints/
+# written at build time from git (setuptools-scm)
+src/feffgpu/_version.py

@@ -6,9 +6,14 @@ build:
   tools:
     python: "3.12"
   jobs:
+    post_checkout:
+      # the version comes from git (setuptools-scm): fetch the whole history and the tags
+      - git fetch --unshallow --tags || true
     pre_install:
-      # Read the Docs has no GPU: install the small CPU-only PyTorch first, so that `pip install .` does not pull the CUDA build.
-      - pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - python -m pip install --upgrade pip
+      # Read the Docs has no GPU: install the small CPU-only PyTorch first, so that `pip install .` does not pull the CUDA
+      # build. PyPI stays available for PyTorch's own dependencies.
+      - python -m pip install torch --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
 
 python:
   install:
