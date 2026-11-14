@@ -24,7 +24,7 @@ def rock_salt_inputs(d, seed=7, sd=0.05, s02=0.9, de0=1.5):
     return sym, pos, cell, truth
 
 
-def one_edge_toml(d, output="out", generations=12, extra="", amplitude='refit_from = 4\nrefit_every = 4', search_extra="", name="config.toml"):
+def one_edge_toml(d, output="out", generations=12, extra="", amplitude='mode = "fit"\nrefit_from = 4\nrefit_every = 4', search_extra="", name="config.toml"):
     text = f"""
 [run]
 output = "{output}"
@@ -213,7 +213,7 @@ def test_the_configured_bounds_reach_every_refit(one_edge_run, tmp_path):
     the search and in the final one, and the bound is reported; S0^2 stays inside its range."""
     from feffgpu.rmc import run_search
     cfg = one_edge_toml(one_edge_run, output=str(tmp_path / "bounds"), generations=4, name="bounds.toml",
-                        amplitude="s02_bounds = [0.95, 1.5]\nde0_bounds = [-0.5, 0.5]\nrefit_from = 2\nrefit_every = 2")
+                        amplitude="mode = \"fit\"\ns02_bounds = [0.95, 1.5]\nde0_bounds = [-0.5, 0.5]\nrefit_from = 2\nrefit_every = 2")
     run_search(cfg, log=None)
     run = json.loads((tmp_path / "bounds/run.json").read_text())
     hist = json.loads((tmp_path / "bounds/rs/history.json").read_text())

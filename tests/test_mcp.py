@@ -87,9 +87,13 @@ def test_tools_as_plain_methods(tmp_path):
     assert "not a job identifier" in t.job_status("nope")["error"] or "no job" in t.job_status("nope")["error"]
     assert "kind must be one of" in t.config_schema("xyz")["error"]
     docs = t.list_docs()
-    assert any(p["name"] == "index" for p in docs["pages"])
-    assert t.read_doc("index", max_lines=5)["text"] and "error" in t.read_doc("../README")
-    assert t.search_docs("free-atom table")["hits"]
+    if docs["pages"]:                                  # a source checkout, or FEFFGPU_DOCS names the docs folder
+        assert any(p["name"] == "index" for p in docs["pages"])
+        assert t.read_doc("index", max_lines=5)["text"] and "error" in t.read_doc("../README")
+        assert t.search_docs("free-atom table")["hits"]
+    else:                                              # a package installed from PyPI: the pages are on the web
+        assert "readthedocs.io" in docs["note"] and "FEFFGPU_DOCS" in docs["note"]
+        assert "readthedocs.io" in t.read_doc("index")["error"] and "readthedocs.io" in t.search_docs("free-atom table")["error"]
 
 
 def test_the_mcp_server_lists_and_calls_the_tools(tmp_path):

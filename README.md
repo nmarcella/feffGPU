@@ -144,25 +144,30 @@ paths, and compared with EvAX's output files. EvAX itself is not run. The misfit
 
 | Calculation | Atoms | EvAX's run | `rmc-exafs refine` | Misfit: EvAX | Misfit: this package |
 |---|---|---|---|---|---|
-| Pt foil, Pt L3 edge | 500 | 17 h | 8.5 min | 0.108 | 0.095 |
-| Cu2O, Cu K edge | 384 | 44 h | 12 min | 0.193 | 0.185 |
-| Ga2O3, Ga K edge | 480 (here 600) | 23 h | 19 min | 0.121 | 0.135 |
-| Au147 particle, Au L3 edge | 147 | 31 h | 7 min | 0.176 | 0.170 |
-| PdAu particle, Pd K and Au L3 edges in one fit | 336 | 26 h | 38 min | 0.109 and 0.174 | 0.101 and 0.174 |
+| Pt foil, Pt L3 edge | 500 | 17 h | 10 min | 0.108 | 0.095 |
+| Cu2O, Cu K edge | 384 | 44 h | 12 min | 0.193 | 0.187 |
+| Ga2O3, Ga K edge | 480 (here 600) | 23 h | 20 min | 0.121 | 0.156 |
+| Au147 particle, Au L3 edge | 147 | 31 h | 8 min | 0.176 | 0.182 |
+| ReO3, Re L3 edge | 256 | 27 h | 32 min | 0.115 | 0.114 |
+| CoWO4 particles, Co K and W L3 edges in one fit | 1536 | 39 h | 33 min | 0.059 and 0.065 | 0.033 and 0.041 |
+| PdAu particle, Pd K and Au L3 edges in one fit | 336 | 26 h | 41 min | 0.109 and 0.174 | 0.121 and 0.181 |
 
-![Five calculations of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](https://raw.githubusercontent.com/nmarcella/feffGPU/main/docs/rmc/commissioning_evax.png)
+![Nine spectra of EvAX's library fitted with rmc-exafs refine: for each, k squared chi(k), the magnitude of its Fourier transform and the distribution of neighbor distances; EvAX's target in black, EvAX's fit in orange, this package's fit in blue](https://raw.githubusercontent.com/nmarcella/feffGPU/main/docs/rmc/commissioning_evax.png)
 
 Black: EvAX's target. Orange: EvAX's fit and final atoms. Blue: this package's fit and final atoms.
 
-- Shell distances of the two final structures agree within 0.003 Å for the Pt foil, Cu2O and Ga2O3, within 0.014 Å
-  for the Au147 particle and within 0.017 Å for the Pd-Au and Au-Au shells of the PdAu particle. Shell variances
-  agree within a few percent to 25 % for the first four; for the PdAu particle they are a quarter to a third smaller
-  here than in EvAX's structure.
-- EvAX's run times are read from the dates of its output files (16 threads); this package ran on one 12 GB GPU.
-  These are single runs: the spread between independent refinements has not been measured yet.
-- Still open: the spread between runs (and with it the smaller variances in the PdAu particle), a rule for the start
-  and the length of a refinement of a particle, and three further calculations of the library with paths of five
-  and six legs (anatase TiO2, ReO3, CoWO4), which are being compared now that paths of up to eight legs are computed.
+- All runs use the same settings: EvAX's start lattice with random displacements of 0.05 Å, EvAX's choice of paths
+  (up to six legs for ReO3 and CoWO4), S0² and the E0 shift held as in EvAX.
+- Shell distances of the two final structures agree within 0.004 Å in the crystals and within 0.010 Å in the Au147
+  particle and the Au-Au shells of the PdAu particle; shells of few pairs differ by up to 0.03 Å.
+- Where this package's misfit is the higher one (Ga2O3, Au147, PdAu), the start of 0.05 Å is too narrow for a
+  strongly disordered sample: the shells end 10 to 40 % narrower than EvAX's. From wider starts earlier runs reached
+  0.135, 0.170, and 0.101 with 0.174. The width of the start is an input that matters; a rule for it is still open.
+- EvAX's run times are read from the dates of its output files (its parameter files ask for 12 or 16 threads; the
+  processors used are not recorded); this package ran on one 12 GB GPU. These are single runs: the spread between
+  independent refinements has not been measured yet.
+- Still open: a rule for the start, the spread between runs, and one difference at the W edge of CoWO4 between
+  EvAX's own spectrum and this package's spectrum of EvAX's atoms.
 
 The full tables, what was checked underneath (the forward model against FEFF itself on EvAX's atoms, the lists of
 paths) and the sources of the calculations are in

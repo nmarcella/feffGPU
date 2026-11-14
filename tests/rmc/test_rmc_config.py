@@ -47,7 +47,8 @@ generations = 5
 """
     cfg = C.RmcConfig.model_validate(tomllib.loads(text))
     assert cfg.moves.exchange == [] and cfg.moves.hops is None                              # nothing about exchanges, vacancies or sites is required
-    assert cfg.amplitude.mode == "fit" and cfg.constraints.max_displacement == 0.4 and cfg.search.states == 32
+    assert cfg.amplitude.mode == "fixed" and cfg.amplitude.s02 == 1.0 and cfg.amplitude.de0 == 0.0     # S0^2 and the E0 shift: declared and held
+    assert cfg.constraints.max_displacement == 0.4 and cfg.search.states == 32
 
 
 def test_validate_file_reports_every_problem_by_its_field(tmp_path):
@@ -162,3 +163,26 @@ def test_json_schema_documents_every_key():
                 missing.append(f"{name}.{key}")
     assert not missing, missing
     json.dumps(schema)
+
+
+def test_s02_and_the_e0_shift_are_held_unless_a_fit_is_asked_for(tmp_path):
+    """Declared and held is the default. The refinement holds them always: the declared values, or those of an earlier
+    run (a reference material); a requested fit is refused, not ignored."""
+    from feffgpu.rmc.outputs import METHOD
+    from feffgpu.rmc.run import _held_amplitude
+    assert C.AmplitudeSettings().mode == "fixed"
+    data = tomllib.loads(C.example_configs()["refine"])
+    cfg = C.RmcConfig.model_validate(data)
+    assert cfg.amplitude.mode == "fixed" and _held_amplitude(cfg, cfg.sample[0], print) is cfg       # the declared values, as written
+    data["amplitude"]["mode"] = "fit"
+    with pytest.raises(ValueError, match="holds S0\\^2 and the E0 shift and does not fit them"):
+        _held_amplitude(C.RmcConfig.model_validate(data), cfg.sample[0], print)
+    (tmp_path / "reference").mkdir()
+    (tmp_path / "reference" / "run.json").write_text(json.dumps({"method": METHOD, "shared": {"s02": {"Cu": 0.87}, "de0": {"Cu": 2.5}}}))
+    data["amplitude"] = {"mode": "from_run", "from_run": str(tmp_path / "reference")}
+    lines = []
+    held = _held_amplitude(C.RmcConfig.model_validate(data), cfg.sample[0], lines.append)
+    assert held.amplitude.s02 == {"Cu": 0.87} and held.amplitude.de0 == {"Cu": 2.5} and "held" in lines[0]
+    (tmp_path / "reference" / "run.json").write_text(json.dumps({"method": METHOD, "shared": {"s02": {"Ni": 0.9}, "de0": {"Ni": 0.0}}}))
+    with pytest.raises(ValueError, match="no shared values for the spectrum 'Cu'"):
+        _held_amplitude(C.RmcConfig.model_validate(data), cfg.sample[0], print)

@@ -25,7 +25,9 @@ spread over states means the spectra do not fix it); it is not an error bar.
 
 ## 3. S0² and the E0 shift
 
-In mode `fit` the final refit gives intervals (`run.json`, `intervals`): the curvature of the summed log-likelihood
+S0² and the E0 shift are declared and held by default; the result then depends on the declared values, and the
+report says so. In mode `fit` (a run that includes a reference material, [](configuration.md)) the final refit
+gives intervals (`run.json`, `intervals`): the curvature of the summed log-likelihood
 at the optimum, with the likelihood weight `W_g = N_ind,g / (2 M_g)` of every sample (`N_ind` the number of
 independent points of its windows, `M_g` its misfit at the optimum or `noise_floor` if larger), inverted to standard
 deviations of log S0² and of the E0 shift; the intervals are +/- 1.645 standard deviations (90 %), with the correlation

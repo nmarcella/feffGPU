@@ -3,6 +3,30 @@
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- **S0² and the E0 shift are declared and held by default** in RMC-EXAFS (`[amplitude] mode = "fixed"` is now the
+  default; it was `"fit"`). S0² trades with the disorder of the structure, so the fit of a sample cannot determine
+  it: the values come from a reference material. `mode = "fit"` (the population search only) stays for the special
+  case that a reference material of known structure is one of the samples of the run. A configuration of the search
+  that relied on the old default needs `mode = "fit"` written out. The templates `one_edge` and `rearrangements`
+  hold the values; `two_samples` shows the fit with a reference.
+- `rmc-exafs refine` takes held values from an earlier run (`mode = "from_run"`; it used the declared `s02` and
+  `de0` without a message), and stops with a message when `mode = "fit"` is asked for (it never fitted them).
+- The test of the agent server's documentation tools is valid for a package installed from PyPI, where the pages are
+  on the web.
+
+### Documentation
+
+- **Commissioning against EvAX** (still underway): every calculation of EvAX's library was fitted again with one set
+  of settings (those that `rmc-exafs from-evax` writes). The page now has nine spectra of seven calculations,
+  including ReO3 and CoWO4 particles with paths of five and six legs, the statistical uncertainty of the shell
+  variances, and what the runs showed: the result depends on the width of the start. The anatase TiO2 entry is left
+  out of the tables, with the reason (its parameter file divides the data by a negative S0²).
+- Row 2 of the table of differences from EvAX: S0² and the E0 shift are declared and held, as in EvAX.
+
 ## 0.2.0 (2026-11-14)
 
 The first public version: one package with three tools.

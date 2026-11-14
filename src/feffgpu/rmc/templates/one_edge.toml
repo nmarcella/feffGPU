@@ -1,8 +1,8 @@
 # One sample, one measured edge, no rearrangements: the simplest RMC-EXAFS run.
 #
 # Example: a rock-salt oxide NiO whose Ni K edge was measured. The model is a supercell of the start structure; every
-# atom's start position is its lattice site. The atoms move under EvAX's rules (with gradient steps added), S0^2 and the
-# E0 shift of the one spectrum are fitted on it. Relative paths are relative to this file.
+# atom's start position is its lattice site. The atoms move under EvAX's rules (with gradient steps added); S0^2 and the
+# E0 shift of the spectrum are declared and held. Relative paths are relative to this file.
 #
 #   rmc-exafs validate one_edge.toml
 #   rmc-exafs run one_edge.toml
@@ -30,13 +30,12 @@ supercell = [3, 3, 3]             # replication of the structure (the cell must 
   criteria = 2.5                  # importance filter of the multiple-scattering paths (percent)
 
 [amplitude]
-mode = "fit"                      # S0^2 and the E0 shift fitted on the best state ('fixed': held; 'from_run': from an earlier run)
-s02 = 1.0                         # start value
-de0 = 0.0                         # start value (eV); the forward model is evaluated at it
-s02_bounds = [0.5, 1.5]           # a safety range, not a prior
-de0_bounds = [-8.0, 8.0]          # eV, relative to the start value
-refit_from = 101                  # first refit during the search; then every refit_every generations
-refit_every = 10
+mode = "fixed"                    # S0^2 and the E0 shift are held ('from_run': held at the values of an earlier run)
+s02 = 1.0                         # S0^2: replace by the value from a reference material measured the same way
+de0 = 0.0                         # the E0 shift (eV), from the same reference; the forward model is evaluated at it
+# S0^2 trades with the disorder, so the fit of one sample cannot determine it. mode = "fit" refits both on the best
+# state (settings s02_bounds, de0_bounds, refit_from, refit_every); it is for a run that includes a reference material
+# of known structure as a second sample (template two_samples).
 
 [search]                          # EvAX's keyword in brackets in the documentation of every key
 states = 16                       # [Number_of_states]; even

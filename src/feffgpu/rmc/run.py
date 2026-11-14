@@ -15,7 +15,7 @@ from ..parallel import primary_device
 from .config import RmcConfig, load_config
 from .structure import ModelCell, fluorite_sites, read_site_file, sublattice_sites
 from .search import RmcSample, EvaxSearch
-from .outputs import write_json
+from .outputs import write_json, shared_values_of_run
 
 __all__ = ["build_sample", "build_samples", "run_search", "run_refine", "KMAX_GRID"]
 
@@ -30,6 +30,25 @@ def _start_value(table, name, default):
     if isinstance(table, dict):
         return float(table.get(name, default))
     return float(table)
+
+
+def _held_amplitude(cfg: RmcConfig, sample, log):
+    """The configuration with the values of S0^2 and the E0 shift that a refinement holds: the declared ones
+    (``mode = "fixed"``) or the shared values of an earlier run (``mode = "from_run"``). A refinement does not fit them."""
+    A = cfg.amplitude
+    if A.mode == "fit":
+        raise ValueError("[amplitude] mode = \"fit\": `rmc-exafs refine` holds S0^2 and the E0 shift and does not fit them. Declare them "
+                         "(mode = \"fixed\" with s02 and de0), take them from an earlier run (mode = \"from_run\"), or fit them with "
+                         "`rmc-exafs run`.")
+    if A.mode == "from_run":
+        s02s, de0s = shared_values_of_run(A.from_run)
+        for e in sample.edge:
+            if e.name not in s02s or e.name not in de0s:
+                raise ValueError(f"amplitude.from_run: {A.from_run} has no shared values for the spectrum {e.name!r}")
+        log(f"[{sample.label}] S0^2 and E0 shifts taken from {A.from_run} and held: "
+            + ", ".join(f"{e.name}: {s02s[e.name]:.4f}, {de0s[e.name]:+.3f} eV" for e in sample.edge))
+        cfg = cfg.model_copy(update={"amplitude": A.model_copy(update={"s02": s02s, "de0": de0s})})
+    return cfg
 
 
 def build_sample(s, cfg: RmcConfig, device="cuda", phases=None):
@@ -201,7 +220,8 @@ def run_refine(config, log=print):
     A structure of one element with one spectrum fitted by the R-factor is refined by ``GpuRmc``. Everything else
     (several elements, several spectra, a wavelet objective) is refined by ``EdgeRefinement``, with the displacement
     limit and the closest distances of ``[constraints]``; each spectrum's misfit is its own ``objective`` and their sum
-    is lowered. S0^2 and the energy shifts are held at the values of ``[amplitude]``.
+    is lowered. S0^2 and the energy shifts are held: at the declared values of ``[amplitude]``, or at those of an
+    earlier run (``mode = "from_run"``); ``mode = "fit"`` is refused.
 
     Writes ``<output>/<label>/refine.json`` (settings, history, misfits) and ``refine.npz`` (the start and final
     positions, the targets and the calculated spectra). Returns the summary."""
@@ -210,8 +230,9 @@ def run_refine(config, log=print):
         raise ValueError("the configuration has no [refine] section (needed by `rmc-exafs refine`)")
     from .refine import GpuRmc
     rs = cfg.refine
-    device = primary_device(cfg.run.devices)
     s = cfg.sample[0]
+    cfg = _held_amplitude(cfg, s, log or (lambda *a: None))
+    device = primary_device(cfg.run.devices)
     e = s.edge[0]
     model = ModelCell.from_file(s.structure, supercell=s.supercell, format=s.format)
     if len(s.edge) > 1 or set(model.symbols.tolist()) != {e.absorber} or model.cell is None or e.objective != "r_factor":

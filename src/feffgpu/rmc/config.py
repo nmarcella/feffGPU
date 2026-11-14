@@ -112,13 +112,20 @@ class SampleSettings(_Model):
 
 
 class AmplitudeSettings(_Model):
-    """[amplitude]: S0^2 and the E0 shift, one value per spectrum name, shared by the samples."""
-    mode: Literal["fit", "fixed", "from_run"] = Field("fit", description="'fit': refitted jointly over all samples on the best states "
-                                                                         "(feffgpu.exafs.fit_shared); 'fixed': held at s02 and de0 (EvAX's rule); "
-                                                                         "'from_run': held at the shared values of the run named by from_run.")
-    s02: Union[float, dict[str, float]] = Field(1.0, description="S0^2: the start value ('fit') or the held value ('fixed'); one number for every "
+    """[amplitude]: S0^2 and the E0 shift, one value per spectrum name, shared by the samples.
+
+    They are declared and held (``mode = "fixed"``, the default): S0^2 trades with the disorder of the structure, so a
+    fit of the structure cannot determine it. ``mode = "fit"`` is for a fit that includes a reference material of known
+    structure whose spectra share S0^2 and the E0 shift with the sample's; ``mode = "from_run"`` holds the values that
+    an earlier run (of the reference) found."""
+    mode: Literal["fixed", "fit", "from_run"] = Field("fixed", description="'fixed': held at the declared s02 and de0 (EvAX's rule). 'from_run': held "
+                                                                           "at the shared values of the run named by from_run (for example a fit of a "
+                                                                           "reference material). 'fit' (`rmc-exafs run` only): refitted jointly over "
+                                                                           "all samples on the best states; meant for a fit that includes a reference "
+                                                                           "material of known structure, because S0^2 trades with the disorder.")
+    s02: Union[float, dict[str, float]] = Field(1.0, description="S0^2: the held value ('fixed') or the start value ('fit'); one number for every "
                                                                  "spectrum or {name: value}.")
-    de0: Union[float, dict[str, float]] = Field(0.0, description="The E0 shift (eV): the start or held value; one number or {name: value}. The "
+    de0: Union[float, dict[str, float]] = Field(0.0, description="The E0 shift (eV): the held or start value; one number or {name: value}. The "
                                                                  "pair tables and paths are evaluated at it; a fit changes it by interpolation.")
     s02_bounds: list[float] = Field([0.5, 1.5], min_length=2, max_length=2, description="Allowed range of S0^2 in the fits: a safety range, not a "
                                                                                        "prior. A value on a bound is reported.")

@@ -38,7 +38,7 @@ difference is listed in [](evax_differences.md) with the switch that restores Ev
 For every sample, in this order:
 
 **0. Every `paths_every` generations** the path lists of every state are found again and every state is evaluated
-again. **In mode `fit`, every `refit_every` generations from `refit_from` on,** S0² and the E0 shift of every spectrum
+again. S0² and the E0 shift are held by default. **In mode `fit`, every `refit_every` generations from `refit_from` on,** S0² and the E0 shift of every spectrum
 name are refitted jointly over all samples, each sample on its best state with that state's own multiple scattering
 (`feffgpu.exafs.fit_shared`, within `s02_bounds` and `de0_bounds`), and every state is rescored.
 

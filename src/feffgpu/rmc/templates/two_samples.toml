@@ -1,9 +1,12 @@
 # Two samples in one fit: two structures, each with its own measured spectra, sharing S0^2 and the E0 shift of the
 # edges with the same name (the same edge of the same element, measured on both samples).
 #
-# Example: a ZnO powder and a ZnO film, both measured at the Zn K edge; the film was also measured at the O K edge.
-# The spectra named "Zn" share one S0^2 and one E0 shift. The weights of the two spectra of the film adapt during the
-# run (EvAX's adjust_spectra_weights). Relative paths are relative to this file.
+# Example: a ZnO powder (the reference material, of known structure) and a ZnO film, both measured at the Zn K edge;
+# the film was also measured at the O K edge. The spectra named "Zn" share one S0^2 and one E0 shift. Because the
+# reference is part of the run, S0^2 and the E0 shift are fitted here (mode = "fit"); that is the special case. Without
+# a reference in the run, declare and hold them (mode = "fixed", the default). In mode "fit" every spectrum is
+# fitted, also the film's O spectrum, which has no reference here. The weights of the two spectra of the film adapt
+# during the run (EvAX's adjust_spectra_weights). Relative paths are relative to this file.
 
 [run]
 output = "runs/two_samples"
@@ -50,7 +53,7 @@ supercell = [3, 3, 2]
   nleg = 3
 
 [amplitude]
-mode = "fit"
+mode = "fit"                      # fitted, because the powder is a reference of known structure in the same run
 s02 = { Zn = 1.0, O = 1.0 }       # start values per spectrum name
 de0 = { Zn = 0.0, O = 0.0 }
 refit_from = 101

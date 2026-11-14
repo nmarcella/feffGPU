@@ -45,7 +45,9 @@ matches the target in R space:
 - **The hard core**: a harmonic penalty of stiffness `core_stiffness` (eV/Å²) on every pair closer than
   `core_distance`.
 
-S0² and the E0 shift come from `[amplitude]` (`s02`, `de0`) and are held.
+S0² and the E0 shift come from `[amplitude]` and are held: the declared `s02` and `de0` (`mode = "fixed"`, the
+default), or the values that an earlier run of `rmc-exafs run` found, for example on a reference material
+(`mode = "from_run"`). The refinement never fits them; with `mode = "fit"` it stops with a message.
 
 With several elements or several spectra (`EdgeRefinement`):
 

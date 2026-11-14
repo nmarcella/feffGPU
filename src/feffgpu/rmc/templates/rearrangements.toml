@@ -26,9 +26,9 @@ structure = "CaSrF_start.vasp"    # 3 x 3 x 3 conventional cells, the vacancies 
   nleg = 3
 
 [amplitude]
-mode = "fit"
-refit_from = 101
-refit_every = 10
+mode = "fixed"                    # S0^2 and the E0 shift are held
+s02 = 1.0                         # replace by the values from a reference material measured the same way
+de0 = 0.0
 
 [search]
 states = 16

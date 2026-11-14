@@ -52,11 +52,9 @@ supercell = [1, 1, 1]
   nleg = 3
 
 [amplitude]
-mode = "fit"
-s02_bounds = [0.5, 1.5]
-de0_bounds = [-8.0, 8.0]
-refit_from = 101
-refit_every = 10
+mode = "fixed"                # declared and held; the values come from a reference material
+s02 = 0.90
+de0 = 1.5
 
 [search]
 states = 16
@@ -148,9 +146,9 @@ The window of a comparison with a measured spectrum, in xraylarch's terms (``fef
 
 | key | type | default | meaning |
 |---|---|---|---|
-| `mode` | one of "fit", "fixed", "from_run" | `"fit"` | 'fit': refitted jointly over all samples on the best states (feffgpu.exafs.fit_shared); 'fixed': held at s02 and de0 (EvAX's rule); 'from_run': held at the shared values of the run named by from_run. |
-| `s02` | number or table of number | `1.0` | S0^2: the start value ('fit') or the held value ('fixed'); one number for every spectrum or {name: value}. |
-| `de0` | number or table of number | `0.0` | The E0 shift (eV): the start or held value; one number or {name: value}. The pair tables and paths are evaluated at it; a fit changes it by interpolation. |
+| `mode` | one of "fixed", "fit", "from_run" | `"fixed"` | 'fixed': held at the declared s02 and de0 (EvAX's rule). 'from_run': held at the shared values of the run named by from_run (for example a fit of a reference material). 'fit' (`rmc-exafs run` only): refitted jointly over all samples on the best states; meant for a fit that includes a reference material of known structure, because S0^2 trades with the disorder. |
+| `s02` | number or table of number | `1.0` | S0^2: the held value ('fixed') or the start value ('fit'); one number for every spectrum or {name: value}. |
+| `de0` | number or table of number | `0.0` | The E0 shift (eV): the held or start value; one number or {name: value}. The pair tables and paths are evaluated at it; a fit changes it by interpolation. |
 | `s02_bounds` | list of number | `[0.5, 1.5]` | Allowed range of S0^2 in the fits: a safety range, not a prior. A value on a bound is reported. |
 | `de0_bounds` | list of number | `[-8.0, 8.0]` | Allowed change of the E0 shift in the fits (eV), relative to the start value. |
 | `refit_every` | integer | `10` | Generations between refits during the search ('fit'). |
@@ -253,11 +251,18 @@ the potential given for their element.
 
 ## The amplitude modes
 
+S0² and the E0 shift are declared and held: they are properties of the absorbing atom, the beamline and the energy
+calibration, measured on a reference material, and S0² trades with the disorder of the structure, so the fit of a
+sample cannot determine it ([](uncertainty.md)). Fitting them (`"fit"`) is for the special case that a reference
+material of known structure is itself one of the samples of the run and shares S0² and the E0 shift with the
+sample's spectrum of the same edge. The gradient refinement (`rmc-exafs refine`) always holds them and refuses
+`"fit"`.
+
 | `[amplitude].mode` | S0² and the E0 shift during the search | at the end |
 |---|---|---|
-| `"fit"` (default) | start at `s02`, `de0` (or at the values of `from_run`, or of the run that `search.continue_from` continues); refitted jointly over the samples on their best states every `refit_every` generations from `refit_from` on (`refit_from = 0`: never during the search) | refitted once more, with intervals |
-| `"fixed"` | held at `s02`, `de0` (EvAX's rule), also in a continued run | held |
-| `"from_run"` | held at the shared values of the run named by `from_run` (a scan of an input then keeps one set of shared values) | held |
+| `"fixed"` (default) | held at the declared `s02`, `de0` (EvAX's rule), also in a continued run | held |
+| `"from_run"` | held at the shared values of the run named by `from_run`, for example a fit of a reference material (a scan of an input then keeps one set of shared values) | held |
+| `"fit"` (`rmc-exafs run` only) | start at `s02`, `de0` (or at the values of `from_run`, or of the run that `search.continue_from` continues); refitted jointly over the samples on their best states every `refit_every` generations from `refit_from` on (`refit_from = 0`: never during the search) | refitted once more, with intervals |
 
 The pair tables and paths are evaluated at the start value of the E0 shift; a fit changes the shift by
 interpolation of the calculated spectrum (exact to about 1e-4 of the signal for a few eV).

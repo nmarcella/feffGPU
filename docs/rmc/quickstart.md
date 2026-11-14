@@ -130,7 +130,8 @@ runs together to `rmc-exafs shells` to see how much the result depends on the st
 
 ## 5. The population search (8 minutes)
 
-The same problem with EvAX's evolutionary algorithm, and with S0² and the E0 shift fitted. `config.toml` has the same
+The same problem with EvAX's evolutionary algorithm, and, to show what it does, with S0² and the E0 shift fitted
+instead of held (holding them is the default). `config.toml` has the same
 `[[sample]]` block and, in place of `[refine]`:
 
 ```toml
@@ -173,8 +174,10 @@ the refinement above.
 Three lessons of this example hold for every RMC fit:
 
 1. **S0² trades with the disorder.** A misfit of 6e-5 against 6e-6 separates the two answers only because this
-   spectrum has no noise. With measured data both are fits. Hold S0² at a value from a reference compound (the
-   refinement always holds it), or compare fits with S0² held at several values. The interval that `run.json` gives
+   spectrum has no noise. With measured data both are fits. So S0² and the E0 shift are declared and held, at
+   values from a reference compound: that is the default, and the refinement always holds them. Fit them only when
+   the reference material is itself a sample of the run. To see what the choice costs, compare fits with S0² held
+   at several values. The interval that `run.json` gives
    for a fitted S0² is computed with the structure held fixed and does not include this trade. See
    [](uncertainty.md).
 2. **The numbers of neighbors are inputs.** 6, 12 and 8 come out exactly, in every run: with a displacement limit

@@ -27,7 +27,7 @@ kd, cd = read_chi("data.chi")
 edge = EdgeModel("Zn", k, to_grid(k, kd, cd), FitWindow(kmin=3, kmax=13, dk=2, kweight=2, rmin=1, rmax=3.6),
                  load_phase("phase_Zn.pkl"), model.symbols, model.cell, "Zn", potentials={"Zn": 1, "O": 2}, rpath=5.0, nleg=3)
 search = EvaxSearch([RmcSample("zno", model, [edge])], SearchSettings(states=16, generations=300, gradient_steps=20),
-                    amplitude=AmplitudeSettings(refit_from=51), constraints=ConstraintSettings(max_displacement=0.4),
+                    amplitude=AmplitudeSettings(s02=0.90, de0=1.5), constraints=ConstraintSettings(max_displacement=0.4),
                     seed=1, output="runs/zno")
 summary = search.run()
 ```
