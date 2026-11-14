@@ -11,7 +11,7 @@ repository-code: "https://github.com/nmarcella/feffGPU"
 url: "https://feffgpu.readthedocs.io"
 license: MIT
 version: 0.2.0
-date-released: "2026-11-12"
+date-released: "2026-11-14"
 keywords:
   - EXAFS
   - FEFF
